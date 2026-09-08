@@ -36,6 +36,7 @@ pub struct WatcherStatus {
     pub is_dev: bool,
     pub api_base: String,
     pub has_token: bool,
+    pub signed_in_email: Option<String>,
     pub log_path: String,
     pub log_exists: bool,
     pub detailed_logs: Option<bool>,
@@ -59,6 +60,7 @@ impl WatcherStatus {
             is_dev: is_dev(),
             api_base: settings.api_base(),
             has_token: settings.token().is_some(),
+            signed_in_email: settings.user_email(),
             log_path: log_path.display().to_string(),
             log_exists: exists,
             detailed_logs: None,
@@ -204,6 +206,7 @@ fn open_follower(app: &AppHandle, tail: bool) -> LogFollower {
         status.log_exists = path.exists();
         status.api_base = settings.api_base();
         status.has_token = settings.token().is_some();
+        status.signed_in_email = settings.user_email();
     });
     if tail {
         LogFollower::tail(path)

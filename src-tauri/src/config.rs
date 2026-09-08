@@ -36,6 +36,14 @@ pub fn health_url(api_base: &str) -> String {
     format!("{}/up", api_base.trim_end_matches('/'))
 }
 
+pub fn device_login_url(api_base: &str) -> String {
+    format!("{}/api/device/login", api_base.trim_end_matches('/'))
+}
+
+pub fn device_logout_url(api_base: &str) -> String {
+    format!("{}/api/device/logout", api_base.trim_end_matches('/'))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -45,6 +53,10 @@ mod tests {
         assert_eq!(
             matches_url("https://arenacoach-web.test/"),
             "https://arenacoach-web.test/api/matches"
+        );
+        assert_eq!(
+            device_login_url("https://arenacoach-web.test/"),
+            "https://arenacoach-web.test/api/device/login"
         );
     }
 

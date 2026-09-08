@@ -19,6 +19,7 @@ type WatcherStatus = {
   is_dev: boolean;
   api_base: string;
   has_token: boolean;
+  signed_in_email: string | null;
   log_path: string;
   log_exists: boolean;
   detailed_logs: boolean | null;
@@ -43,7 +44,11 @@ const PHASE_LABEL: Record<WatchPhase, string> = {
 function App() {
   const [status, setStatus] = useState<WatcherStatus | null>(null);
   const [apiBase, setApiBase] = useState("");
-  const [token, setToken] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [needsTwoFactor, setNeedsTwoFactor] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -65,14 +70,58 @@ function App() {
     };
   }, []);
 
-  async function saveSettings() {
+  async function saveHost() {
     setBusy(true);
     try {
       const next = await invoke<WatcherStatus>("update_settings", {
-        patch: { api_base: apiBase, token },
+        patch: { api_base: apiBase },
       });
       setStatus(next);
-      setToken("");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function signIn() {
+    setBusy(true);
+    setAuthError(null);
+    try {
+      await invoke<WatcherStatus>("update_settings", {
+        patch: { api_base: apiBase },
+      });
+      const next = await invoke<WatcherStatus>("sign_in", {
+        payload: {
+          email,
+          password,
+          code: needsTwoFactor ? code : null,
+        },
+      });
+      setStatus(next);
+      setPassword("");
+      setCode("");
+      setNeedsTwoFactor(false);
+    } catch (error) {
+      const message = String(error);
+      if (message === "two_factor") {
+        setNeedsTwoFactor(true);
+        setAuthError("Enter the two-factor code from your authenticator.");
+      } else {
+        setAuthError(message);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function signOut() {
+    setBusy(true);
+    setAuthError(null);
+    try {
+      const next = await invoke<WatcherStatus>("sign_out");
+      setStatus(next);
+      setPassword("");
+      setCode("");
+      setNeedsTwoFactor(false);
     } finally {
       setBusy(false);
     }
@@ -114,6 +163,7 @@ function App() {
               : `${status.api_base} (${status.host_reachable ? "up" : "down"})`
           }
         />
+        <Row label="Account" value={status.signed_in_email ?? "signed out"} />
         <Row label="Log" value={status.log_exists ? status.log_path : "not found"} />
         <Row
           label="Detailed Logs"
@@ -131,7 +181,6 @@ function App() {
           value={status.last_upload_status ? String(status.last_upload_status) : "—"}
         />
         <Row label="Entries seen" value={String(status.entries_seen)} />
-        <Row label="Device token" value={status.has_token ? "set" : "not set"} />
       </section>
 
       {status.last_error ? <p className="error">{status.last_error}</p> : null}
@@ -140,7 +189,7 @@ function App() {
         className="card form"
         onSubmit={(event) => {
           event.preventDefault();
-          saveSettings();
+          saveHost();
         }}
       >
         <label>
@@ -151,19 +200,65 @@ function App() {
             placeholder="https://arenacoach-web.test"
           />
         </label>
-        <label>
-          Device token
-          <input
-            type="password"
-            value={token}
-            onChange={(event) => setToken(event.currentTarget.value)}
-            placeholder={status.has_token ? "••••••••" : "optional for now"}
-          />
-        </label>
         <button type="submit" disabled={busy}>
-          Save connection
+          Save host
         </button>
       </form>
+
+      {status.has_token ? (
+        <section className="card form">
+          <p>
+            Signed in as <strong>{status.signed_in_email ?? "this account"}</strong>
+          </p>
+          <button className="secondary" disabled={busy} onClick={signOut}>
+            Sign out
+          </button>
+        </section>
+      ) : (
+        <form
+          className="card form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            signIn();
+          }}
+        >
+          <label>
+            Email
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.currentTarget.value)}
+              autoComplete="username"
+              required
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.currentTarget.value)}
+              autoComplete="current-password"
+              required
+            />
+          </label>
+          {needsTwoFactor ? (
+            <label>
+              Two-factor code
+              <input
+                value={code}
+                onChange={(event) => setCode(event.currentTarget.value)}
+                autoComplete="one-time-code"
+                required
+              />
+            </label>
+          ) : null}
+          {authError ? <p className="error">{authError}</p> : null}
+          <button type="submit" disabled={busy}>
+            Sign in
+          </button>
+        </form>
+      )}
 
       {status.is_dev ? (
         <button className="secondary" disabled={busy} onClick={replayFixture}>
