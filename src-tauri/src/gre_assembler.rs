@@ -506,7 +506,21 @@ mod tests {
         assert_eq!(assembled.format, Format::Constructed);
         assert_eq!(assembled.result, MatchResult::Win);
         assert_eq!(assembled.player_seat, 1);
-        assert_eq!(assembled.deck_grp_ids, vec![1, 2, 3]);
+        assert_eq!(assembled.deck_grp_ids.len(), 60);
+        assert!(assembled.deck_grp_ids.contains(&68398));
+        assert!(assembled.timeline.len() >= 20);
+        assert!(
+            assembled
+                .timeline
+                .iter()
+                .any(|event| event.kind == EventKind::Mulligan)
+        );
+        assert!(
+            assembled
+                .timeline
+                .iter()
+                .any(|event| event.kind == EventKind::Keep)
+        );
         assert!(
             assembled
                 .timeline
@@ -517,7 +531,37 @@ mod tests {
             assembled
                 .timeline
                 .iter()
+                .any(|event| event.kind == EventKind::Cast && event.actor == Actor::Me)
+        );
+        assert!(
+            assembled
+                .timeline
+                .iter()
+                .any(|event| event.kind == EventKind::Cast && event.actor == Actor::Opponent)
+        );
+        assert!(
+            assembled
+                .timeline
+                .iter()
+                .any(|event| event.kind == EventKind::Attack)
+        );
+        assert!(
+            assembled
+                .timeline
+                .iter()
+                .any(|event| event.kind == EventKind::Damage)
+        );
+        assert!(
+            assembled
+                .timeline
+                .iter()
                 .any(|event| event.kind == EventKind::Life)
+        );
+        assert!(
+            assembled
+                .timeline
+                .iter()
+                .any(|event| event.kind == EventKind::Pass)
         );
         let json = serde_json::to_string(&assembled).unwrap();
         assert!(!json.contains("REDACTED_USER"));
@@ -545,6 +589,8 @@ mod tests {
         let assembled = assemble(log).unwrap();
         let kinds: Vec<_> = assembled.timeline.iter().map(|event| event.kind).collect();
         assert!(kinds.contains(&EventKind::Land));
+        assert!(kinds.contains(&EventKind::Cast));
+        assert!(kinds.contains(&EventKind::Attack));
         assert!(kinds.contains(&EventKind::Life));
     }
 

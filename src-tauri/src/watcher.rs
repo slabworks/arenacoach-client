@@ -354,7 +354,12 @@ async fn replay_embedded(
             finished = Some(assembled);
         }
     }
-    let assembled = finished.ok_or_else(|| "Embedded fixture did not produce a match".to_string())?;
+    let mut assembled = finished.ok_or_else(|| "Embedded fixture did not produce a match".to_string())?;
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or(0);
+    assembled.client_match_id = format!("match-fixture-{stamp}");
     let mut queue = VecDeque::new();
     upload_match(app, client, assembled, &mut queue, posted_lens).await;
     Ok(())

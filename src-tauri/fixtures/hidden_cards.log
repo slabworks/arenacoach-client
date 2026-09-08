@@ -1,0 +1,10 @@
+[UnityCrossThreadLogger]9/8/2026 6:00:00 PM
+{"matchGameRoomStateChangedEvent":{"gameRoomInfo":{"stateType":"MatchGameRoomStateType_Playing","gameRoomConfig":{"matchId":"match-hidden-001","eventId":"Constructed_BestOf1"}}}}
+[UnityCrossThreadLogger]9/8/2026 6:00:01 PM
+{"greToClientEvent":{"greToClientMessages":[{"type":"GREMessageType_ConnectResp","systemSeatIds":[1],"connectResp":{"deckMessage":{"deckCards":[68398,70242,76001]}}}]}}
+[UnityCrossThreadLogger]9/8/2026 6:00:02 PM
+{"clientToGREMessage":{"type":"ClientMessageType_MulliganResp","systemSeatId":1,"mulliganResp":{"decision":"MulliganOption_AcceptHand"}}}
+[UnityCrossThreadLogger]9/8/2026 6:00:03 PM
+{"greToClientEvent":{"greToClientMessages":[{"type":"GREMessageType_GameStateMessage","systemSeatIds":[1],"gameStateMessage":{"turnInfo":{"turnNumber":1,"phase":"Phase_Main1","activePlayer":2},"gameObjects":[{"instanceId":202,"grpId":77777,"ownerSeatId":2,"visibility":"Visibility_Hidden"},{"instanceId":203,"grpId":88888,"ownerSeatId":2,"visibility":"Visibility_Hidden"}],"annotations":[{"id":9,"affectorId":2,"affectedIds":[202],"type":["AnnotationType_ZoneTransfer"],"details":[{"key":"category","type":"KeyValuePairValueType_string","valueString":["CastSpell"]}]},{"id":10,"affectorId":2,"affectedIds":[203],"type":["AnnotationType_DeclaredAttackers"],"details":[]}]}}]}}
+[UnityCrossThreadLogger]9/8/2026 6:00:04 PM
+{"greToClientEvent":{"greToClientMessages":[{"type":"GREMessageType_GameStateMessage","systemSeatIds":[1],"gameStateMessage":{"gameInfo":{"stage":"GameStage_GameOver","matchState":"MatchState_GameComplete","results":[{"winningTeamId":2}]}}}]}}

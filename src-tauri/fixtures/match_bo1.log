@@ -1,0 +1,2053 @@
+[UnityCrossThreadLogger]9/8/2026 5:00:00 PM
+{
+  "matchGameRoomStateChangedEvent": {
+    "gameRoomInfo": {
+      "stateType": "MatchGameRoomStateType_Playing",
+      "gameRoomConfig": {
+        "matchId": "match-fixture-001",
+        "eventId": "Constructed_BestOf1",
+        "sessionId": "session-REDACTED",
+        "reservedPlayers": [
+          {
+            "systemSeatId": 1,
+            "userId": "REDACTED_USER",
+            "playerName": "Alice#11111",
+            "screenName": "Alice#11111",
+            "teamId": 1
+          },
+          {
+            "systemSeatId": 2,
+            "userId": "REDACTED_OPP",
+            "playerName": "Opponent",
+            "teamId": 2
+          }
+        ]
+      }
+    }
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:00:01 PM
+{
+  "greToClientEvent": {
+    "greToClientMessages": [
+      {
+        "type": "GREMessageType_ConnectResp",
+        "systemSeatIds": [
+          1
+        ],
+        "connectResp": {
+          "status": "ConnectionStatus_Success",
+          "deckMessage": {
+            "deckCards": [
+              68398,
+              68398,
+              68398,
+              68398,
+              73951,
+              73951,
+              73951,
+              73951,
+              73951,
+              73951,
+              73951,
+              73951,
+              84512,
+              84512,
+              84512,
+              84512,
+              69420,
+              69420,
+              69420,
+              69420,
+              70242,
+              70242,
+              70242,
+              70242,
+              71890,
+              71890,
+              71890,
+              71890,
+              73301,
+              73301,
+              73301,
+              73301,
+              75110,
+              75110,
+              76001,
+              76001,
+              76001,
+              76001,
+              77112,
+              77112,
+              77112,
+              77112,
+              78220,
+              78220,
+              78220,
+              78220,
+              79005,
+              79005,
+              79005,
+              79005,
+              80111,
+              80111,
+              80111,
+              80111,
+              81222,
+              81222,
+              81222,
+              81222,
+              82333,
+              82333
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:00:02 PM
+{
+  "clientToGREMessage": {
+    "type": "ClientMessageType_MulliganResp",
+    "systemSeatId": 1,
+    "mulliganResp": {
+      "decision": "MulliganOption_Mulligan"
+    }
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:00:03 PM
+{
+  "clientToGREMessage": {
+    "type": "ClientMessageType_MulliganResp",
+    "systemSeatId": 1,
+    "mulliganResp": {
+      "decision": "MulliganOption_AcceptHand"
+    }
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:00:04 PM
+{
+  "greToClientEvent": {
+    "greToClientMessages": [
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 1,
+            "phase": "Phase_Beginning",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Start",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "gameObjects": [
+            {
+              "instanceId": 101,
+              "grpId": 68398,
+              "ownerSeatId": 1,
+              "controllerSeatId": 1,
+              "visibility": "Visibility_Private"
+            },
+            {
+              "instanceId": 102,
+              "grpId": 84512,
+              "ownerSeatId": 1,
+              "controllerSeatId": 1,
+              "visibility": "Visibility_Private"
+            },
+            {
+              "instanceId": 103,
+              "grpId": 70242,
+              "ownerSeatId": 1,
+              "controllerSeatId": 1,
+              "visibility": "Visibility_Private"
+            },
+            {
+              "instanceId": 104,
+              "grpId": 69420,
+              "ownerSeatId": 1,
+              "controllerSeatId": 1,
+              "visibility": "Visibility_Private"
+            },
+            {
+              "instanceId": 105,
+              "grpId": 76001,
+              "ownerSeatId": 1,
+              "controllerSeatId": 1,
+              "visibility": "Visibility_Private"
+            },
+            {
+              "instanceId": 106,
+              "grpId": 73301,
+              "ownerSeatId": 1,
+              "controllerSeatId": 1,
+              "visibility": "Visibility_Private"
+            },
+            {
+              "instanceId": 107,
+              "grpId": 78220,
+              "ownerSeatId": 1,
+              "controllerSeatId": 1,
+              "visibility": "Visibility_Private"
+            },
+            {
+              "instanceId": 108,
+              "grpId": 79005,
+              "ownerSeatId": 1,
+              "controllerSeatId": 1,
+              "visibility": "Visibility_Private"
+            },
+            {
+              "instanceId": 201,
+              "grpId": 73951,
+              "ownerSeatId": 2,
+              "controllerSeatId": 2,
+              "visibility": "Visibility_Public"
+            },
+            {
+              "instanceId": 202,
+              "grpId": 84512,
+              "ownerSeatId": 2,
+              "controllerSeatId": 2,
+              "visibility": "Visibility_Public"
+            },
+            {
+              "instanceId": 203,
+              "grpId": 71890,
+              "ownerSeatId": 2,
+              "controllerSeatId": 2,
+              "visibility": "Visibility_Public"
+            },
+            {
+              "instanceId": 204,
+              "grpId": 77112,
+              "ownerSeatId": 2,
+              "controllerSeatId": 2,
+              "visibility": "Visibility_Public"
+            },
+            {
+              "instanceId": 205,
+              "grpId": 75110,
+              "ownerSeatId": 2,
+              "controllerSeatId": 2,
+              "visibility": "Visibility_Public"
+            },
+            {
+              "instanceId": 206,
+              "grpId": 80111,
+              "ownerSeatId": 2,
+              "controllerSeatId": 2,
+              "visibility": "Visibility_Public"
+            },
+            {
+              "instanceId": 999,
+              "grpId": 12,
+              "ownerSeatId": 1,
+              "controllerSeatId": 1,
+              "visibility": "Visibility_Private"
+            }
+          ],
+          "zones": [
+            {
+              "zoneId": 31,
+              "type": "ZoneType_Hand",
+              "ownerSeatId": 1,
+              "objectInstanceIds": [
+                101,
+                102,
+                103,
+                104,
+                105,
+                106,
+                107
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 1,
+            "phase": "Phase_Main1",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 1,
+              "affectorId": 1,
+              "affectedIds": [
+                101
+              ],
+              "type": [
+                "AnnotationType_ZoneTransfer"
+              ],
+              "details": [
+                {
+                  "key": "zone_src",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    31
+                  ]
+                },
+                {
+                  "key": "zone_dest",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    32
+                  ]
+                },
+                {
+                  "key": "category",
+                  "type": "KeyValuePairValueType_string",
+                  "valueString": [
+                    "PlayLand"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 1,
+            "phase": "Phase_Ending",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 2,
+              "affectorId": 1,
+              "affectedIds": [
+                1
+              ],
+              "type": [
+                "AnnotationType_PhaseOrStepModified"
+              ],
+              "details": []
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:00:12 PM
+{
+  "greToClientEvent": {
+    "greToClientMessages": [
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 1,
+            "phase": "Phase_Main1",
+            "activePlayer": 2
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 3,
+              "affectorId": 2,
+              "affectedIds": [
+                201
+              ],
+              "type": [
+                "AnnotationType_ZoneTransfer"
+              ],
+              "details": [
+                {
+                  "key": "zone_src",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    31
+                  ]
+                },
+                {
+                  "key": "zone_dest",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    32
+                  ]
+                },
+                {
+                  "key": "category",
+                  "type": "KeyValuePairValueType_string",
+                  "valueString": [
+                    "PlayLand"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 1,
+            "phase": "Phase_Ending",
+            "activePlayer": 2
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 4,
+              "affectorId": 2,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_PhaseOrStepModified"
+              ],
+              "details": []
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:00:24 PM
+{
+  "greToClientEvent": {
+    "greToClientMessages": [
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 2,
+            "phase": "Phase_Main1",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 5,
+              "affectorId": 1,
+              "affectedIds": [
+                102
+              ],
+              "type": [
+                "AnnotationType_ZoneTransfer"
+              ],
+              "details": [
+                {
+                  "key": "zone_src",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    31
+                  ]
+                },
+                {
+                  "key": "zone_dest",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    32
+                  ]
+                },
+                {
+                  "key": "category",
+                  "type": "KeyValuePairValueType_string",
+                  "valueString": [
+                    "PlayLand"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_QueuedGameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "queuedGameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 2,
+            "phase": "Phase_Main1",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 6,
+              "affectorId": 1,
+              "affectedIds": [
+                103
+              ],
+              "type": [
+                "AnnotationType_ZoneTransfer"
+              ],
+              "details": [
+                {
+                  "key": "zone_src",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    31
+                  ]
+                },
+                {
+                  "key": "zone_dest",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    32
+                  ]
+                },
+                {
+                  "key": "category",
+                  "type": "KeyValuePairValueType_string",
+                  "valueString": [
+                    "CastSpell"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 2,
+            "phase": "Phase_Ending",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 7,
+              "affectorId": 1,
+              "affectedIds": [
+                1
+              ],
+              "type": [
+                "AnnotationType_PhaseOrStepModified"
+              ],
+              "details": []
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:00:36 PM
+{
+  "greToClientEvent": {
+    "greToClientMessages": [
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 2,
+            "phase": "Phase_Main1",
+            "activePlayer": 2
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 8,
+              "affectorId": 2,
+              "affectedIds": [
+                202
+              ],
+              "type": [
+                "AnnotationType_ZoneTransfer"
+              ],
+              "details": [
+                {
+                  "key": "zone_src",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    31
+                  ]
+                },
+                {
+                  "key": "zone_dest",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    32
+                  ]
+                },
+                {
+                  "key": "category",
+                  "type": "KeyValuePairValueType_string",
+                  "valueString": [
+                    "PlayLand"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 2,
+            "phase": "Phase_Main1",
+            "activePlayer": 2
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 9,
+              "affectorId": 2,
+              "affectedIds": [
+                203
+              ],
+              "type": [
+                "AnnotationType_ZoneTransfer"
+              ],
+              "details": [
+                {
+                  "key": "zone_src",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    31
+                  ]
+                },
+                {
+                  "key": "zone_dest",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    32
+                  ]
+                },
+                {
+                  "key": "category",
+                  "type": "KeyValuePairValueType_string",
+                  "valueString": [
+                    "CastSpell"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 2,
+            "phase": "Phase_Ending",
+            "activePlayer": 2
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 10,
+              "affectorId": 2,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_PhaseOrStepModified"
+              ],
+              "details": []
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:00:48 PM
+{
+  "greToClientEvent": {
+    "greToClientMessages": [
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 3,
+            "phase": "Phase_Main1",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 11,
+              "affectorId": 1,
+              "affectedIds": [
+                104
+              ],
+              "type": [
+                "AnnotationType_ZoneTransfer"
+              ],
+              "details": [
+                {
+                  "key": "zone_src",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    31
+                  ]
+                },
+                {
+                  "key": "zone_dest",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    32
+                  ]
+                },
+                {
+                  "key": "category",
+                  "type": "KeyValuePairValueType_string",
+                  "valueString": [
+                    "PlayLand"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": 12,
+              "affectorId": 1,
+              "affectedIds": [
+                105
+              ],
+              "type": [
+                "AnnotationType_ZoneTransfer"
+              ],
+              "details": [
+                {
+                  "key": "zone_src",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    31
+                  ]
+                },
+                {
+                  "key": "zone_dest",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    32
+                  ]
+                },
+                {
+                  "key": "category",
+                  "type": "KeyValuePairValueType_string",
+                  "valueString": [
+                    "CastSpell"
+                  ]
+                }
+              ]
+            }
+          ],
+          "diffDeletedInstanceIds": [
+            999
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 3,
+            "phase": "Phase_Ending",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 13,
+              "affectorId": 1,
+              "affectedIds": [
+                1
+              ],
+              "type": [
+                "AnnotationType_PhaseOrStepModified"
+              ],
+              "details": []
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:01:00 PM
+{
+  "greToClientEvent": {
+    "greToClientMessages": [
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 3,
+            "phase": "Phase_Main1",
+            "activePlayer": 2
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 14,
+              "affectorId": 2,
+              "affectedIds": [
+                204
+              ],
+              "type": [
+                "AnnotationType_ZoneTransfer"
+              ],
+              "details": [
+                {
+                  "key": "zone_src",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    31
+                  ]
+                },
+                {
+                  "key": "zone_dest",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    32
+                  ]
+                },
+                {
+                  "key": "category",
+                  "type": "KeyValuePairValueType_string",
+                  "valueString": [
+                    "CastSpell"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 3,
+            "phase": "Phase_Ending",
+            "activePlayer": 2
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 15,
+              "affectorId": 2,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_PhaseOrStepModified"
+              ],
+              "details": []
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:01:14 PM
+{
+  "greToClientEvent": {
+    "greToClientMessages": [
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 4,
+            "phase": "Phase_Combat",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 16,
+              "affectorId": 1,
+              "affectedIds": [
+                103
+              ],
+              "type": [
+                "AnnotationType_DeclaredAttackers"
+              ],
+              "details": []
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 4,
+            "phase": "Phase_Combat",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 17,
+              "affectorId": 103,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_DamageDealt"
+              ],
+              "details": [
+                {
+                  "key": "damage",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    2
+                  ]
+                }
+              ]
+            },
+            {
+              "id": 18,
+              "affectorId": 2,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_ModifiedLife"
+              ],
+              "details": [
+                {
+                  "key": "life",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    -2
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 4,
+            "phase": "Phase_Ending",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 19,
+              "affectorId": 1,
+              "affectedIds": [
+                1
+              ],
+              "type": [
+                "AnnotationType_PhaseOrStepModified"
+              ],
+              "details": []
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:01:28 PM
+{
+  "greToClientEvent": {
+    "greToClientMessages": [
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 4,
+            "phase": "Phase_Main1",
+            "activePlayer": 2
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 20,
+              "affectorId": 2,
+              "affectedIds": [
+                206
+              ],
+              "type": [
+                "AnnotationType_ZoneTransfer"
+              ],
+              "details": [
+                {
+                  "key": "zone_src",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    31
+                  ]
+                },
+                {
+                  "key": "zone_dest",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    32
+                  ]
+                },
+                {
+                  "key": "category",
+                  "type": "KeyValuePairValueType_string",
+                  "valueString": [
+                    "CastSpell"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 4,
+            "phase": "Phase_Combat",
+            "activePlayer": 2
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 21,
+              "affectorId": 2,
+              "affectedIds": [
+                203
+              ],
+              "type": [
+                "AnnotationType_DeclaredAttackers"
+              ],
+              "details": []
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 4,
+            "phase": "Phase_Combat",
+            "activePlayer": 2
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 22,
+              "affectorId": 203,
+              "affectedIds": [
+                1
+              ],
+              "type": [
+                "AnnotationType_DamageDealt"
+              ],
+              "details": [
+                {
+                  "key": "damage",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    3
+                  ]
+                }
+              ]
+            },
+            {
+              "id": 23,
+              "affectorId": 1,
+              "affectedIds": [
+                1
+              ],
+              "type": [
+                "AnnotationType_ModifiedLife"
+              ],
+              "details": [
+                {
+                  "key": "life",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    -3
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 4,
+            "phase": "Phase_Ending",
+            "activePlayer": 2
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 24,
+              "affectorId": 2,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_PhaseOrStepModified"
+              ],
+              "details": []
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:01:42 PM
+{
+  "greToClientEvent": {
+    "greToClientMessages": [
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 5,
+            "phase": "Phase_Main1",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 25,
+              "affectorId": 1,
+              "affectedIds": [
+                106
+              ],
+              "type": [
+                "AnnotationType_ZoneTransfer"
+              ],
+              "details": [
+                {
+                  "key": "zone_src",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    31
+                  ]
+                },
+                {
+                  "key": "zone_dest",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    32
+                  ]
+                },
+                {
+                  "key": "category",
+                  "type": "KeyValuePairValueType_string",
+                  "valueString": [
+                    "CastSpell"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 5,
+            "phase": "Phase_Combat",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 26,
+              "affectorId": 1,
+              "affectedIds": [
+                103,
+                106
+              ],
+              "type": [
+                "AnnotationType_DeclaredAttackers"
+              ],
+              "details": []
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 5,
+            "phase": "Phase_Combat",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 27,
+              "affectorId": 103,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_DamageDealt"
+              ],
+              "details": [
+                {
+                  "key": "damage",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    2
+                  ]
+                }
+              ]
+            },
+            {
+              "id": 28,
+              "affectorId": 106,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_DamageDealt"
+              ],
+              "details": [
+                {
+                  "key": "damage",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    3
+                  ]
+                }
+              ]
+            },
+            {
+              "id": 29,
+              "affectorId": 2,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_ModifiedLife"
+              ],
+              "details": [
+                {
+                  "key": "life",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    -5
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 5,
+            "phase": "Phase_Ending",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 30,
+              "affectorId": 1,
+              "affectedIds": [
+                1
+              ],
+              "type": [
+                "AnnotationType_PhaseOrStepModified"
+              ],
+              "details": []
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:01:56 PM
+{
+  "greToClientEvent": {
+    "greToClientMessages": [
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 5,
+            "phase": "Phase_Main1",
+            "activePlayer": 2
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 31,
+              "affectorId": 2,
+              "affectedIds": [
+                205
+              ],
+              "type": [
+                "AnnotationType_ZoneTransfer"
+              ],
+              "details": [
+                {
+                  "key": "zone_src",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    31
+                  ]
+                },
+                {
+                  "key": "zone_dest",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    32
+                  ]
+                },
+                {
+                  "key": "category",
+                  "type": "KeyValuePairValueType_string",
+                  "valueString": [
+                    "CastSpell"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 5,
+            "phase": "Phase_Ending",
+            "activePlayer": 2
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 32,
+              "affectorId": 2,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_PhaseOrStepModified"
+              ],
+              "details": []
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:02:10 PM
+{
+  "greToClientEvent": {
+    "greToClientMessages": [
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 6,
+            "phase": "Phase_Main1",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 33,
+              "affectorId": 1,
+              "affectedIds": [
+                107
+              ],
+              "type": [
+                "AnnotationType_ZoneTransfer"
+              ],
+              "details": [
+                {
+                  "key": "zone_src",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    31
+                  ]
+                },
+                {
+                  "key": "zone_dest",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    32
+                  ]
+                },
+                {
+                  "key": "category",
+                  "type": "KeyValuePairValueType_string",
+                  "valueString": [
+                    "CastSpell"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 6,
+            "phase": "Phase_Combat",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 34,
+              "affectorId": 1,
+              "affectedIds": [
+                103,
+                106,
+                107
+              ],
+              "type": [
+                "AnnotationType_DeclaredAttackers"
+              ],
+              "details": []
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 6,
+            "phase": "Phase_Combat",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 35,
+              "affectorId": 103,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_DamageDealt"
+              ],
+              "details": [
+                {
+                  "key": "damage",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    2
+                  ]
+                }
+              ]
+            },
+            {
+              "id": 36,
+              "affectorId": 106,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_DamageDealt"
+              ],
+              "details": [
+                {
+                  "key": "damage",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    3
+                  ]
+                }
+              ]
+            },
+            {
+              "id": 37,
+              "affectorId": 107,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_DamageDealt"
+              ],
+              "details": [
+                {
+                  "key": "damage",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    4
+                  ]
+                }
+              ]
+            },
+            {
+              "id": 38,
+              "affectorId": 2,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_ModifiedLife"
+              ],
+              "details": [
+                {
+                  "key": "life",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    -9
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 6,
+            "phase": "Phase_Ending",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 39,
+              "affectorId": 1,
+              "affectedIds": [
+                1
+              ],
+              "type": [
+                "AnnotationType_PhaseOrStepModified"
+              ],
+              "details": []
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:02:22 PM
+{
+  "greToClientEvent": {
+    "greToClientMessages": [
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 6,
+            "phase": "Phase_Main1",
+            "activePlayer": 2
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 40,
+              "affectorId": 2,
+              "affectedIds": [
+                203
+              ],
+              "type": [
+                "AnnotationType_ZoneTransfer"
+              ],
+              "details": [
+                {
+                  "key": "zone_src",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    31
+                  ]
+                },
+                {
+                  "key": "zone_dest",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    33
+                  ]
+                },
+                {
+                  "key": "category",
+                  "type": "KeyValuePairValueType_string",
+                  "valueString": [
+                    "Discard"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 6,
+            "phase": "Phase_Ending",
+            "activePlayer": 2
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 41,
+              "affectorId": 2,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_PhaseOrStepModified"
+              ],
+              "details": []
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:02:36 PM
+{
+  "greToClientEvent": {
+    "greToClientMessages": [
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 7,
+            "phase": "Phase_Combat",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 42,
+              "affectorId": 1,
+              "affectedIds": [
+                103,
+                106,
+                107
+              ],
+              "type": [
+                "AnnotationType_DeclaredAttackers"
+              ],
+              "details": []
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 7,
+            "phase": "Phase_Combat",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_Play",
+            "matchState": "MatchState_GameInProgress"
+          },
+          "annotations": [
+            {
+              "id": 43,
+              "affectorId": 103,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_DamageDealt"
+              ],
+              "details": [
+                {
+                  "key": "damage",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    2
+                  ]
+                }
+              ]
+            },
+            {
+              "id": 44,
+              "affectorId": 106,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_DamageDealt"
+              ],
+              "details": [
+                {
+                  "key": "damage",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    3
+                  ]
+                }
+              ]
+            },
+            {
+              "id": 45,
+              "affectorId": 107,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_DamageDealt"
+              ],
+              "details": [
+                {
+                  "key": "damage",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    4
+                  ]
+                }
+              ]
+            },
+            {
+              "id": 46,
+              "affectorId": 2,
+              "affectedIds": [
+                2
+              ],
+              "type": [
+                "AnnotationType_ModifiedLife"
+              ],
+              "details": [
+                {
+                  "key": "life",
+                  "type": "KeyValuePairValueType_int32",
+                  "valueInt32": [
+                    -9
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "turnInfo": {
+            "turnNumber": 7,
+            "phase": "Phase_Ending",
+            "activePlayer": 1
+          },
+          "gameInfo": {
+            "matchID": "match-fixture-001",
+            "stage": "GameStage_GameOver",
+            "matchState": "MatchState_GameComplete",
+            "results": [
+              {
+                "scope": "MatchScope_Game",
+                "result": "ResultType_WinLoss",
+                "winningTeamId": 1
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
+[UnityCrossThreadLogger]9/8/2026 5:02:37 PM
+{
+  "greToClientEvent": {
+    "greToClientMessages": [
+      {
+        "type": "GREMessageType_GameStateMessage",
+        "systemSeatIds": [
+          1
+        ],
+        "gameStateMessage": {
+          "gameInfo": {
+            "stage": "GameStage_GameOver",
+            "matchState": "MatchState_MatchComplete",
+            "results": [
+              {
+                "scope": "MatchScope_Match",
+                "result": "ResultType_WinLoss",
+                "winningTeamId": 1
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

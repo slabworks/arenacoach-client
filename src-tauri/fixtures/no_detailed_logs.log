@@ -1,0 +1,5 @@
+Initialize engine version: 6000.3.14f1
+DETAILED LOGS: DISABLED
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+[UnityCrossThreadLogger]FrontDoorConnectionAWS.Open {"creator":"ArenaGlobals.Constructor"}
+[UnityCrossThreadLogger]Got non-message event: Wizards.Arena.TcpConnection.TcpOpenedEvent
