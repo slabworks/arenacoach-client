@@ -18,7 +18,6 @@ impl LogEntry {
         let (timestamp, body) = split_header(rest);
         Self { timestamp, body }
     }
-
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,8 +78,8 @@ impl LogFollower {
 
         let meta = fs::metadata(&self.path)?;
         let key = file_key(&meta);
-        let rotated = self.file_key.is_some()
-            && (self.file_key != Some(key) || meta.len() < self.offset);
+        let rotated =
+            self.file_key.is_some() && (self.file_key != Some(key) || meta.len() < self.offset);
         if rotated {
             let mut unread = self.read_rotated_tail()?;
             self.offset = 0;
@@ -166,7 +165,9 @@ fn split_header(rest: &str) -> (Option<String>, String) {
     let line_end = rest.find('\n').unwrap_or(rest.len());
     let first_line = rest[..line_end].trim_end_matches('\r');
     if looks_like_timestamp(first_line) {
-        let body = rest[line_end..].trim_start_matches(['\r', '\n']).to_string();
+        let body = rest[line_end..]
+            .trim_start_matches(['\r', '\n'])
+            .to_string();
         (Some(first_line.trim().to_string()), body)
     } else {
         (None, rest.trim_start_matches(['\r', '\n']).to_string())
@@ -174,7 +175,10 @@ fn split_header(rest: &str) -> (Option<String>, String) {
 }
 
 fn looks_like_timestamp(line: &str) -> bool {
-    if line.is_empty() || line.starts_with('{') || line.starts_with("==>") || line.starts_with("<==")
+    if line.is_empty()
+        || line.starts_with('{')
+        || line.starts_with("==>")
+        || line.starts_with("<==")
     {
         return false;
     }
@@ -341,7 +345,11 @@ mod tests {
     fn poll_emits_completed_partial_on_next_read() {
         let dir = temp_dir();
         let path = dir.join("Player.log");
-        fs::write(&path, "[UnityCrossThreadLogger]9/8/2026 5:00:00 PM\n{\"a\":").unwrap();
+        fs::write(
+            &path,
+            "[UnityCrossThreadLogger]9/8/2026 5:00:00 PM\n{\"a\":",
+        )
+        .unwrap();
         let mut follower = LogFollower::from_start(path.clone());
         assert!(follower.poll().unwrap().is_empty());
 

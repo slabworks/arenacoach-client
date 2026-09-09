@@ -27,12 +27,8 @@ pub fn player_prev_log_path(player_log: &Path) -> PathBuf {
 
 pub fn player_log_path_for(os: HostOs, home: &Path) -> Option<PathBuf> {
     match os {
-        HostOs::Mac => Some(
-            home.join("Library/Logs/Wizards Of The Coast/MTGA/Player.log"),
-        ),
-        HostOs::Windows => Some(
-            home.join("AppData/LocalLow/Wizards Of The Coast/MTGA/Player.log"),
-        ),
+        HostOs::Mac => Some(home.join("Library/Logs/Wizards Of The Coast/MTGA/Player.log")),
+        HostOs::Windows => Some(home.join("AppData/LocalLow/Wizards Of The Coast/MTGA/Player.log")),
         HostOs::Other => None,
     }
 }

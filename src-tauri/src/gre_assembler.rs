@@ -138,8 +138,7 @@ impl GreAssembler {
             let msg_type = message.get("type").and_then(Value::as_str).unwrap_or("");
             match msg_type {
                 "GREMessageType_ConnectResp" => self.handle_connect(message),
-                "GREMessageType_GameStateMessage"
-                | "GREMessageType_QueuedGameStateMessage" => {
+                "GREMessageType_GameStateMessage" | "GREMessageType_QueuedGameStateMessage" => {
                     if let Some(finished) = self.handle_game_state(message) {
                         completed = Some(finished);
                     }
@@ -437,7 +436,10 @@ impl GreAssembler {
         }
         let attackers = message
             .get("declareAttackersReq")
-            .and_then(|req| req.get("qualifiedAttackers").or_else(|| req.get("attackers")))
+            .and_then(|req| {
+                req.get("qualifiedAttackers")
+                    .or_else(|| req.get("attackers"))
+            })
             .and_then(Value::as_array)
             .into_iter()
             .flatten()
@@ -507,10 +509,7 @@ impl GreAssembler {
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        let type_name = types
-            .first()
-            .and_then(Value::as_str)
-            .unwrap_or("");
+        let type_name = types.first().and_then(Value::as_str).unwrap_or("");
         let details = annotation
             .get("details")
             .and_then(Value::as_array)
@@ -602,7 +601,13 @@ impl GreAssembler {
         Actor::Game
     }
 
-    fn event(&mut self, actor: Actor, kind: EventKind, card_ids: Vec<u32>, note: &str) -> TimelineEvent {
+    fn event(
+        &mut self,
+        actor: Actor,
+        kind: EventKind,
+        card_ids: Vec<u32>,
+        note: &str,
+    ) -> TimelineEvent {
         let t_ms = self.next_t_ms;
         self.next_t_ms += 1000;
         let context = self.decision_context(kind);
@@ -750,9 +755,9 @@ fn result_from_info(info: &Value, player_seat: Option<u32>) -> MatchResult {
     let Some(results) = info.get("results").and_then(Value::as_array) else {
         return MatchResult::Unknown;
     };
-    let winning = results.iter().find_map(|result| {
-        result.get("winningTeamId").and_then(json_u32)
-    });
+    let winning = results
+        .iter()
+        .find_map(|result| result.get("winningTeamId").and_then(json_u32));
     match (winning, player_seat) {
         (Some(winner), Some(seat)) if winner == seat => MatchResult::Win,
         (Some(winner), Some(seat)) if winner != seat => MatchResult::Loss,
@@ -770,7 +775,10 @@ fn event_id_from_players(config: &Value) -> Option<String> {
 
 fn legal_action_from(action: &Value) -> Option<LegalAction> {
     let raw = action.get("actionType").and_then(Value::as_str)?;
-    let name = raw.strip_prefix("ActionType_").unwrap_or(raw).to_ascii_lowercase();
+    let name = raw
+        .strip_prefix("ActionType_")
+        .unwrap_or(raw)
+        .to_ascii_lowercase();
     if name == "pass" {
         return Some(LegalAction {
             action: name,
@@ -840,7 +848,10 @@ mod tests {
 
     fn entries_from(log: &str) -> Vec<LogEntry> {
         let (entries, remainder) = split_entries(log);
-        assert!(remainder.is_empty(), "fixture must be complete: {remainder}");
+        assert!(
+            remainder.is_empty(),
+            "fixture must be complete: {remainder}"
+        );
         entries
     }
 
@@ -883,60 +894,42 @@ mod tests {
         assert_eq!(assembled.deck_grp_ids.len(), 60);
         assert!(assembled.deck_grp_ids.contains(&68398));
         assert!(assembled.timeline.len() >= 20);
-        assert!(
-            assembled
-                .timeline
-                .iter()
-                .any(|event| event.kind == EventKind::Mulligan)
-        );
-        assert!(
-            assembled
-                .timeline
-                .iter()
-                .any(|event| event.kind == EventKind::Keep)
-        );
-        assert!(
-            assembled
-                .timeline
-                .iter()
-                .any(|event| event.kind == EventKind::Land && event.card_ids == vec![68398])
-        );
-        assert!(
-            assembled
-                .timeline
-                .iter()
-                .any(|event| event.kind == EventKind::Cast && event.actor == Actor::Me)
-        );
-        assert!(
-            assembled
-                .timeline
-                .iter()
-                .any(|event| event.kind == EventKind::Cast && event.actor == Actor::Opponent)
-        );
-        assert!(
-            assembled
-                .timeline
-                .iter()
-                .any(|event| event.kind == EventKind::Attack)
-        );
-        assert!(
-            assembled
-                .timeline
-                .iter()
-                .any(|event| event.kind == EventKind::Damage)
-        );
-        assert!(
-            assembled
-                .timeline
-                .iter()
-                .any(|event| event.kind == EventKind::Life)
-        );
-        assert!(
-            assembled
-                .timeline
-                .iter()
-                .any(|event| event.kind == EventKind::Pass)
-        );
+        assert!(assembled
+            .timeline
+            .iter()
+            .any(|event| event.kind == EventKind::Mulligan));
+        assert!(assembled
+            .timeline
+            .iter()
+            .any(|event| event.kind == EventKind::Keep));
+        assert!(assembled
+            .timeline
+            .iter()
+            .any(|event| event.kind == EventKind::Land && event.card_ids == vec![68398]));
+        assert!(assembled
+            .timeline
+            .iter()
+            .any(|event| event.kind == EventKind::Cast && event.actor == Actor::Me));
+        assert!(assembled
+            .timeline
+            .iter()
+            .any(|event| event.kind == EventKind::Cast && event.actor == Actor::Opponent));
+        assert!(assembled
+            .timeline
+            .iter()
+            .any(|event| event.kind == EventKind::Attack));
+        assert!(assembled
+            .timeline
+            .iter()
+            .any(|event| event.kind == EventKind::Damage));
+        assert!(assembled
+            .timeline
+            .iter()
+            .any(|event| event.kind == EventKind::Life));
+        assert!(assembled
+            .timeline
+            .iter()
+            .any(|event| event.kind == EventKind::Pass));
         let json = serde_json::to_string(&assembled).unwrap();
         assert!(!json.contains("REDACTED_USER"));
         assert!(!json.contains("Alice#11111"));
@@ -982,12 +975,10 @@ mod tests {
     fn hidden_opponent_cards_are_omitted() {
         let log = include_str!("../fixtures/hidden_cards.log");
         let assembled = assemble(log).expect("hidden fixture should complete");
-        assert!(
-            assembled
-                .timeline
-                .iter()
-                .all(|event| event.card_ids.is_empty())
-        );
+        assert!(assembled
+            .timeline
+            .iter()
+            .all(|event| event.card_ids.is_empty()));
     }
 
     #[test]
@@ -1004,12 +995,10 @@ mod tests {
         assert_eq!(assembled.format, Format::Constructed);
         assert_eq!(assembled.player_seat, 2);
         assert_eq!(assembled.deck_grp_ids, vec![94111, 93877, 68398]);
-        assert!(
-            assembled
-                .timeline
-                .iter()
-                .any(|event| event.kind == EventKind::Keep && event.card_ids.contains(&94111))
-        );
+        assert!(assembled
+            .timeline
+            .iter()
+            .any(|event| event.kind == EventKind::Keep && event.card_ids.contains(&94111)));
         let land = assembled
             .timeline
             .iter()
@@ -1023,36 +1012,26 @@ mod tests {
         assert!(context.opp_board.contains(&94051));
         assert_eq!(context.my_life, Some(18));
         assert_eq!(context.opp_life, Some(20));
-        assert!(
-            context
-                .legal
-                .iter()
-                .any(|action| action.action == "cast" && action.grp_id == Some(93877))
-        );
-        assert!(
-            assembled
-                .timeline
-                .iter()
-                .any(|event| event.kind == EventKind::Attack && event.actor == Actor::Me)
-        );
-        assert!(
-            assembled
-                .timeline
-                .iter()
-                .any(|event| event.kind == EventKind::Attack && event.actor == Actor::Opponent)
-        );
-        assert!(
-            assembled
-                .timeline
-                .iter()
-                .any(|event| event.kind == EventKind::Block)
-        );
-        assert!(
-            assembled
-                .timeline
-                .iter()
-                .any(|event| event.kind == EventKind::Draw)
-        );
+        assert!(context
+            .legal
+            .iter()
+            .any(|action| action.action == "cast" && action.grp_id == Some(93877)));
+        assert!(assembled
+            .timeline
+            .iter()
+            .any(|event| event.kind == EventKind::Attack && event.actor == Actor::Me));
+        assert!(assembled
+            .timeline
+            .iter()
+            .any(|event| event.kind == EventKind::Attack && event.actor == Actor::Opponent));
+        assert!(assembled
+            .timeline
+            .iter()
+            .any(|event| event.kind == EventKind::Block));
+        assert!(assembled
+            .timeline
+            .iter()
+            .any(|event| event.kind == EventKind::Draw));
     }
 
     #[test]
