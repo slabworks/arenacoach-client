@@ -3,18 +3,29 @@ use std::collections::HashMap;
 use serde_json::Value;
 
 use crate::log_follower::{extract_json_values, LogEntry};
-use crate::match_payload::{Actor, EventKind, Match, MatchResult, TimelineEvent};
+use crate::match_payload::{
+    Actor, DecisionContext, EventKind, LegalAction, Match, MatchResult, TimelineEvent,
+};
 
 const VISIBILITY_HIDDEN: &str = "Visibility_Hidden";
 const GAME_STAGE_OVER: &str = "GameStage_GameOver";
 const MATCH_STATE_COMPLETE: &str = "MatchState_MatchComplete";
 const MATCH_STATE_GAME_COMPLETE: &str = "MatchState_GameComplete";
+const MAX_CONTEXT_CARDS: usize = 16;
 
 #[derive(Debug, Clone)]
 struct GameObject {
     grp_id: Option<u32>,
     owner_seat: Option<u32>,
     visibility: Option<String>,
+    zone_id: Option<u32>,
+}
+
+#[derive(Debug, Clone)]
+struct Zone {
+    zone_type: String,
+    owner_seat: Option<u32>,
+    instance_ids: Vec<u32>,
 }
 
 #[derive(Debug, Default)]
@@ -24,9 +35,13 @@ pub struct GreAssembler {
     player_seat: Option<u32>,
     deck_grp_ids: Vec<u32>,
     objects: HashMap<u32, GameObject>,
+    zones: HashMap<u32, Zone>,
+    life_totals: HashMap<u32, i32>,
+    legal: Vec<LegalAction>,
     timeline: Vec<TimelineEvent>,
     turn: Option<u32>,
     phase: Option<String>,
+    step: Option<String>,
     next_t_ms: u64,
     result: MatchResult,
     in_match: bool,
@@ -67,8 +82,13 @@ impl GreAssembler {
         {
             return self.handle_gre(gre);
         }
-        if value.get("clientToGREMessage").is_some() || value.get("clientToGreMessage").is_some() {
+        if self.looks_like_client_message(value) {
             self.handle_client_to_gre(value);
+        }
+        if let Some(payload) = value.get("payload") {
+            if self.looks_like_client_message(payload) {
+                self.handle_client_to_gre(payload);
+            }
         }
         None
     }
@@ -80,15 +100,24 @@ impl GreAssembler {
         let match_id = string_field(config, &["matchId", "matchID"]);
         let event_id = string_field(config, &["eventId", "eventID"]);
 
+        let event_id = event_id.or_else(|| event_id_from_players(config));
         if state.contains("Playing") {
             if let Some(id) = match_id {
-                if self.match_id.as_deref() != Some(id.as_str()) {
+                let is_new_match = self
+                    .match_id
+                    .as_deref()
+                    .is_some_and(|current| current != id.as_str());
+                if is_new_match {
                     *self = Self::default();
-                    self.match_id = Some(id);
-                    self.event_id = event_id;
-                    self.in_match = true;
                 }
+                self.match_id = Some(id);
+                if self.event_id.is_none() {
+                    self.event_id = event_id;
+                }
+                self.in_match = true;
             }
+        } else if self.event_id.is_none() {
+            self.event_id = event_id;
         }
         if state.contains("MatchCompleted") {
             self.in_match = false;
@@ -115,6 +144,9 @@ impl GreAssembler {
                         completed = Some(finished);
                     }
                 }
+                "GREMessageType_ActionsAvailableReq" => self.handle_actions_available(message),
+                "GREMessageType_DeclareAttackersReq" => self.handle_declare_attackers_req(message),
+                "GREMessageType_DeclareBlockersReq" => self.handle_declare_blockers_req(message),
                 _ => {}
             }
         }
@@ -186,8 +218,13 @@ impl GreAssembler {
             if let Some(phase) = turn.get("phase").and_then(Value::as_str) {
                 self.phase = Some(phase.to_string());
             }
+            if let Some(step) = turn.get("step").and_then(Value::as_str) {
+                self.step = Some(step.to_string());
+            }
         }
 
+        self.merge_players(gsm.get("players"));
+        self.merge_zones(gsm.get("zones"));
         self.merge_objects(gsm.get("gameObjects"));
 
         let annotations = gsm
@@ -239,6 +276,7 @@ impl GreAssembler {
                 grp_id: None,
                 owner_seat: None,
                 visibility: None,
+                zone_id: None,
             });
             if let Some(grp_id) = object.get("grpId").and_then(json_u32) {
                 existing.grp_id = Some(grp_id);
@@ -253,7 +291,68 @@ impl GreAssembler {
             if let Some(visibility) = object.get("visibility").and_then(Value::as_str) {
                 existing.visibility = Some(visibility.to_string());
             }
+            if let Some(zone_id) = object.get("zoneId").and_then(json_u32) {
+                existing.zone_id = Some(zone_id);
+            }
         }
+    }
+
+    fn merge_zones(&mut self, zones: Option<&Value>) {
+        let Some(zones) = zones.and_then(Value::as_array) else {
+            return;
+        };
+        for zone in zones {
+            let Some(zone_id) = zone.get("zoneId").and_then(json_u32) else {
+                continue;
+            };
+            let zone_type = zone
+                .get("type")
+                .or_else(|| zone.get("zoneType"))
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
+            let owner_seat = zone.get("ownerSeatId").and_then(json_u32);
+            let instance_ids = zone
+                .get("objectInstanceIds")
+                .and_then(Value::as_array)
+                .map(|ids| ids.iter().filter_map(json_u32).collect())
+                .unwrap_or_default();
+            self.zones.insert(
+                zone_id,
+                Zone {
+                    zone_type,
+                    owner_seat,
+                    instance_ids,
+                },
+            );
+        }
+    }
+
+    fn merge_players(&mut self, players: Option<&Value>) {
+        let Some(players) = players.and_then(Value::as_array) else {
+            return;
+        };
+        for player in players {
+            let Some(seat) = player
+                .get("systemSeatNumber")
+                .or_else(|| player.get("systemSeatId"))
+                .and_then(json_u32)
+            else {
+                continue;
+            };
+            if let Some(life) = player.get("lifeTotal").and_then(json_i32) {
+                self.life_totals.insert(seat, life);
+            }
+        }
+    }
+
+    fn looks_like_client_message(&self, value: &Value) -> bool {
+        value.get("clientToGREMessage").is_some()
+            || value.get("clientToGreMessage").is_some()
+            || value
+                .get("type")
+                .and_then(Value::as_str)
+                .is_some_and(|name| name.starts_with("ClientMessageType_"))
     }
 
     fn handle_client_to_gre(&mut self, value: &Value) {
@@ -262,21 +361,144 @@ impl GreAssembler {
             .or_else(|| value.get("clientToGreMessage"))
             .unwrap_or(value);
         let msg_type = message.get("type").and_then(Value::as_str).unwrap_or("");
-        if msg_type != "ClientMessageType_MulliganResp" {
+        match msg_type {
+            "ClientMessageType_MulliganResp" => {
+                let decision = message
+                    .get("mulliganResp")
+                    .and_then(|resp| resp.get("decision"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                let (kind, note) = if decision.contains("Accept") || decision.contains("Keep") {
+                    (EventKind::Keep, "Keep")
+                } else {
+                    (EventKind::Mulligan, "Mulligan")
+                };
+                let cards = self.zone_cards("ZoneType_Hand", self.player_seat);
+                let event = self.event(Actor::Me, kind, cards, note);
+                self.timeline.push(event);
+            }
+            "ClientMessageType_DeclareAttackersResp" => {
+                let attackers = message
+                    .get("declareAttackersResp")
+                    .and_then(|resp| resp.get("selectedAttackers"))
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|attacker| attacker.get("attackerInstanceId").and_then(json_u32))
+                    .collect::<Vec<_>>();
+                if attackers.is_empty() {
+                    return;
+                }
+                let cards = self.visible_card_ids(&attackers);
+                let event = self.event(Actor::Me, EventKind::Attack, cards, "attack");
+                self.timeline.push(event);
+            }
+            "ClientMessageType_DeclareBlockersResp" => {
+                let blockers = message
+                    .get("declareBlockersResp")
+                    .and_then(|resp| resp.get("selectedBlockers"))
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|blocker| blocker.get("blockerInstanceId").and_then(json_u32))
+                    .collect::<Vec<_>>();
+                if blockers.is_empty() {
+                    return;
+                }
+                let cards = self.visible_card_ids(&blockers);
+                let event = self.event(Actor::Me, EventKind::Block, cards, "block");
+                self.timeline.push(event);
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_actions_available(&mut self, message: &Value) {
+        if !self.message_is_for_us(message) {
             return;
         }
-        let decision = message
-            .get("mulliganResp")
-            .and_then(|resp| resp.get("decision"))
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        let (kind, note) = if decision.contains("Accept") || decision.contains("Keep") {
-            (EventKind::Keep, "Keep")
-        } else {
-            (EventKind::Mulligan, "Mulligan")
+        let Some(actions) = message
+            .get("actionsAvailableReq")
+            .and_then(|req| req.get("actions"))
+            .and_then(Value::as_array)
+        else {
+            return;
         };
-        let event = self.event(Actor::Me, kind, Vec::new(), note);
-        self.timeline.push(event);
+        self.legal = actions
+            .iter()
+            .filter_map(legal_action_from)
+            .take(MAX_CONTEXT_CARDS)
+            .collect();
+    }
+
+    fn handle_declare_attackers_req(&mut self, message: &Value) {
+        if !self.message_is_for_us(message) {
+            return;
+        }
+        let attackers = message
+            .get("declareAttackersReq")
+            .and_then(|req| req.get("qualifiedAttackers").or_else(|| req.get("attackers")))
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|attacker| attacker.get("attackerInstanceId").and_then(json_u32));
+        self.legal = attackers
+            .filter_map(|id| {
+                Some(LegalAction {
+                    action: "attack".into(),
+                    grp_id: self.objects.get(&id)?.grp_id,
+                })
+            })
+            .take(MAX_CONTEXT_CARDS)
+            .collect();
+    }
+
+    fn handle_declare_blockers_req(&mut self, message: &Value) {
+        if !self.message_is_for_us(message) {
+            return;
+        }
+        let blockers = message
+            .get("declareBlockersReq")
+            .and_then(|req| req.get("blockers"))
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let mut attacker_ids = Vec::new();
+        for blocker in &blockers {
+            if let Some(ids) = blocker.get("attackerInstanceIds").and_then(Value::as_array) {
+                for id in ids.iter().filter_map(json_u32) {
+                    if !attacker_ids.contains(&id) {
+                        attacker_ids.push(id);
+                    }
+                }
+            }
+        }
+        if !attacker_ids.is_empty() {
+            let cards = self.visible_card_ids(&attacker_ids);
+            let event = self.event(Actor::Opponent, EventKind::Attack, cards, "attack");
+            self.timeline.push(event);
+        }
+        self.legal = blockers
+            .iter()
+            .filter_map(|blocker| blocker.get("blockerInstanceId").and_then(json_u32))
+            .filter_map(|id| {
+                Some(LegalAction {
+                    action: "block".into(),
+                    grp_id: self.objects.get(&id)?.grp_id,
+                })
+            })
+            .take(MAX_CONTEXT_CARDS)
+            .collect();
+    }
+
+    fn message_is_for_us(&self, message: &Value) -> bool {
+        let Some(seat) = self.player_seat else {
+            return true;
+        };
+        let Some(seats) = message.get("systemSeatIds").and_then(Value::as_array) else {
+            return true;
+        };
+        seats.iter().filter_map(json_u32).any(|id| id == seat)
     }
 
     fn push_annotation(&mut self, annotation: &Value) {
@@ -309,6 +531,9 @@ impl GreAssembler {
                 let kind = match category.as_deref() {
                     Some("PlayLand") => EventKind::Land,
                     Some("CastSpell") => EventKind::Cast,
+                    Some("Draw") => EventKind::Draw,
+                    Some("Resolve") => EventKind::Resolve,
+                    Some("SBA_Damage") => EventKind::Die,
                     _ => EventKind::Zone,
                 };
                 (kind, category.unwrap_or_else(|| "ZoneTransfer".into()))
@@ -324,6 +549,7 @@ impl GreAssembler {
                 (EventKind::Life, format!("life {amount}"))
             }
             "AnnotationType_DeclaredAttackers" => (EventKind::Attack, "attack".into()),
+            "AnnotationType_DeclaredBlockers" => (EventKind::Block, "block".into()),
             "AnnotationType_PhaseOrStepModified" => {
                 if self.phase.as_deref() == Some("Phase_Ending") {
                     (EventKind::Pass, "pass".into())
@@ -379,15 +605,116 @@ impl GreAssembler {
     fn event(&mut self, actor: Actor, kind: EventKind, card_ids: Vec<u32>, note: &str) -> TimelineEvent {
         let t_ms = self.next_t_ms;
         self.next_t_ms += 1000;
+        let context = self.decision_context(kind);
         TimelineEvent {
             t_ms,
             turn: self.turn,
             phase: self.phase.clone(),
+            step: self.step.clone(),
             actor,
             kind,
             card_ids,
             note: note.to_string(),
+            context,
         }
+    }
+
+    fn decision_context(&self, kind: EventKind) -> Option<DecisionContext> {
+        if !matches!(
+            kind,
+            EventKind::Cast
+                | EventKind::Land
+                | EventKind::Attack
+                | EventKind::Block
+                | EventKind::Keep
+                | EventKind::Mulligan
+        ) {
+            return None;
+        }
+        let seat = self.player_seat;
+        let opp = seat.map(|id| if id == 1 { 2 } else { 1 });
+        let context = DecisionContext {
+            my_hand: self.zone_cards("ZoneType_Hand", seat),
+            my_board: self.battlefield_cards(seat),
+            opp_board: self.battlefield_cards(opp),
+            opp_hand: self.zone_cards("ZoneType_Hand", opp),
+            opp_hand_count: self.zone_size("ZoneType_Hand", opp),
+            my_life: seat.and_then(|id| self.life_totals.get(&id).copied()),
+            opp_life: opp.and_then(|id| self.life_totals.get(&id).copied()),
+            legal: self.legal.clone(),
+        };
+        if context.is_empty() {
+            None
+        } else {
+            Some(context)
+        }
+    }
+
+    fn zone_size(&self, zone_type: &str, owner: Option<u32>) -> Option<u32> {
+        let owner = owner?;
+        let sizes = self
+            .zones
+            .values()
+            .filter(|zone| zone.zone_type == zone_type)
+            .filter(|zone| zone.owner_seat == Some(owner))
+            .map(|zone| zone.instance_ids.len())
+            .collect::<Vec<_>>();
+        if sizes.is_empty() {
+            return None;
+        }
+        Some(sizes.iter().sum::<usize>() as u32)
+    }
+
+    fn zone_cards(&self, zone_type: &str, owner: Option<u32>) -> Vec<u32> {
+        let ids = self
+            .zones
+            .values()
+            .filter(|zone| zone.zone_type == zone_type)
+            .filter(|zone| owner.is_none() || zone.owner_seat == owner)
+            .flat_map(|zone| zone.instance_ids.iter().copied())
+            .collect::<Vec<_>>();
+        self.visible_card_ids(&ids)
+            .into_iter()
+            .take(MAX_CONTEXT_CARDS)
+            .collect()
+    }
+
+    fn battlefield_cards(&self, owner: Option<u32>) -> Vec<u32> {
+        let battlefield_zone_ids = self
+            .zones
+            .iter()
+            .filter(|(_, zone)| zone.zone_type == "ZoneType_Battlefield")
+            .map(|(id, _)| *id)
+            .collect::<Vec<_>>();
+        let mut instance_ids = self
+            .zones
+            .values()
+            .filter(|zone| zone.zone_type == "ZoneType_Battlefield")
+            .flat_map(|zone| zone.instance_ids.iter().copied())
+            .collect::<Vec<_>>();
+        if instance_ids.is_empty() {
+            instance_ids = self
+                .objects
+                .iter()
+                .filter(|(_, object)| {
+                    object
+                        .zone_id
+                        .is_some_and(|zone| battlefield_zone_ids.contains(&zone))
+                })
+                .map(|(id, _)| *id)
+                .collect();
+        }
+        instance_ids.retain(|id| {
+            owner.is_none()
+                || self
+                    .objects
+                    .get(id)
+                    .is_some_and(|object| object.owner_seat == owner)
+        });
+        self.visible_card_ids(&instance_ids)
+            .into_iter()
+            .take(MAX_CONTEXT_CARDS)
+            .collect()
     }
 
     fn emit_match(&self) -> Option<Match> {
@@ -431,6 +758,37 @@ fn result_from_info(info: &Value, player_seat: Option<u32>) -> MatchResult {
         (Some(winner), Some(seat)) if winner != seat => MatchResult::Loss,
         _ => MatchResult::Unknown,
     }
+}
+
+fn event_id_from_players(config: &Value) -> Option<String> {
+    config
+        .get("reservedPlayers")
+        .and_then(Value::as_array)?
+        .iter()
+        .find_map(|player| string_field(player, &["eventId", "eventID"]))
+}
+
+fn legal_action_from(action: &Value) -> Option<LegalAction> {
+    let raw = action.get("actionType").and_then(Value::as_str)?;
+    let name = raw.strip_prefix("ActionType_").unwrap_or(raw).to_ascii_lowercase();
+    if name == "pass" {
+        return Some(LegalAction {
+            action: name,
+            grp_id: None,
+        });
+    }
+    Some(LegalAction {
+        action: name,
+        grp_id: action.get("grpId").and_then(json_u32),
+    })
+}
+
+fn json_i32(value: &Value) -> Option<i32> {
+    value
+        .as_i64()
+        .map(|n| n as i32)
+        .or_else(|| value.as_u64().map(|n| n as i32))
+        .or_else(|| value.as_str()?.parse().ok())
 }
 
 fn string_field(value: &Value, keys: &[&str]) -> Option<String> {
@@ -495,6 +853,22 @@ mod tests {
             }
         }
         last
+    }
+
+    #[test]
+    fn connect_resp_before_playing_room_keeps_deck() {
+        let log = r#"[UnityCrossThreadLogger]
+{"greToClientEvent":{"greToClientMessages":[{"type":"GREMessageType_ConnectResp","systemSeatIds":[2],"connectResp":{"deckMessage":{"deckCards":[94111,93877,68398]}}}]}}
+[UnityCrossThreadLogger]
+{"matchGameRoomStateChangedEvent":{"gameRoomInfo":{"stateType":"MatchGameRoomStateType_Playing","gameRoomConfig":{"matchId":"match-connect-first","reservedPlayers":[{"eventId":"DualColorPrecons"}]}}}}
+[UnityCrossThreadLogger]
+{"greToClientEvent":{"greToClientMessages":[{"type":"GREMessageType_GameStateMessage","gameStateMessage":{"gameInfo":{"matchID":"match-connect-first","stage":"GameStage_GameOver","matchState":"MatchState_GameComplete","results":[{"winningTeamId":2}]}}}]}}
+"#;
+        let assembled = assemble(log).expect("game over should emit a match");
+        assert_eq!(assembled.client_match_id, "match-connect-first");
+        assert_eq!(assembled.event_id, "DualColorPrecons");
+        assert_eq!(assembled.player_seat, 2);
+        assert_eq!(assembled.deck_grp_ids, vec![94111, 93877, 68398]);
     }
 
     #[test]
@@ -620,5 +994,88 @@ mod tests {
     fn missing_detailed_logs_emits_nothing() {
         let log = include_str!("../fixtures/no_detailed_logs.log");
         assert!(assemble(log).is_none());
+    }
+
+    #[test]
+    fn captures_hands_life_legal_actions_and_live_combat() {
+        let log = include_str!("../fixtures/decision_context.log");
+        let assembled = assemble(log).expect("context fixture should complete");
+        assert_eq!(assembled.event_id, "DualColorPrecons");
+        assert_eq!(assembled.format, Format::Constructed);
+        assert_eq!(assembled.player_seat, 2);
+        assert_eq!(assembled.deck_grp_ids, vec![94111, 93877, 68398]);
+        assert!(
+            assembled
+                .timeline
+                .iter()
+                .any(|event| event.kind == EventKind::Keep && event.card_ids.contains(&94111))
+        );
+        let land = assembled
+            .timeline
+            .iter()
+            .find(|event| event.kind == EventKind::Land)
+            .expect("land");
+        let context = land.context.as_ref().expect("land context");
+        assert_eq!(context.opp_hand_count, Some(3));
+        assert_eq!(context.opp_hand, vec![94051]);
+        assert!(context.my_hand.contains(&94111));
+        assert!(context.my_board.contains(&93645));
+        assert!(context.opp_board.contains(&94051));
+        assert_eq!(context.my_life, Some(18));
+        assert_eq!(context.opp_life, Some(20));
+        assert!(
+            context
+                .legal
+                .iter()
+                .any(|action| action.action == "cast" && action.grp_id == Some(93877))
+        );
+        assert!(
+            assembled
+                .timeline
+                .iter()
+                .any(|event| event.kind == EventKind::Attack && event.actor == Actor::Me)
+        );
+        assert!(
+            assembled
+                .timeline
+                .iter()
+                .any(|event| event.kind == EventKind::Attack && event.actor == Actor::Opponent)
+        );
+        assert!(
+            assembled
+                .timeline
+                .iter()
+                .any(|event| event.kind == EventKind::Block)
+        );
+        assert!(
+            assembled
+                .timeline
+                .iter()
+                .any(|event| event.kind == EventKind::Draw)
+        );
+    }
+
+    #[test]
+    #[ignore]
+    fn assemble_player_log_to_json() {
+        let log_path = std::env::var("PLAYER_LOG").expect("PLAYER_LOG");
+        let out_path = std::env::var("MATCH_JSON").expect("MATCH_JSON");
+        let match_id = std::env::var("CLIENT_MATCH_ID").ok();
+        let log = std::fs::read_to_string(&log_path).expect("read player log");
+        let (entries, _) = split_entries(&log);
+        let mut assembler = GreAssembler::new();
+        let mut last = None;
+        let mut found = None;
+        for entry in entries {
+            if let Some(finished) = assembler.push(&entry) {
+                if match_id.as_deref() == Some(finished.client_match_id.as_str()) {
+                    found = Some(finished.clone());
+                }
+                last = Some(finished);
+            }
+        }
+        let assembled = found.or(last).expect("no completed match in log");
+        std::fs::write(out_path, serde_json::to_vec_pretty(&assembled).unwrap())
+            .expect("write match json");
     }
 }

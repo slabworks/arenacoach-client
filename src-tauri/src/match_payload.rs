@@ -34,13 +34,57 @@ pub enum EventKind {
     Cast,
     Land,
     Attack,
+    Block,
     Damage,
     Life,
     Mulligan,
     Keep,
+    Draw,
+    Resolve,
+    Die,
     Zone,
     Pass,
     Other,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LegalAction {
+    pub action: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grp_id: Option<u32>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DecisionContext {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub my_hand: Vec<u32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub my_board: Vec<u32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub opp_board: Vec<u32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub opp_hand: Vec<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opp_hand_count: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub my_life: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opp_life: Option<i32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub legal: Vec<LegalAction>,
+}
+
+impl DecisionContext {
+    pub fn is_empty(&self) -> bool {
+        self.my_hand.is_empty()
+            && self.my_board.is_empty()
+            && self.opp_board.is_empty()
+            && self.opp_hand.is_empty()
+            && self.opp_hand_count.is_none()
+            && self.my_life.is_none()
+            && self.opp_life.is_none()
+            && self.legal.is_empty()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -48,10 +92,14 @@ pub struct TimelineEvent {
     pub t_ms: u64,
     pub turn: Option<u32>,
     pub phase: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub step: Option<String>,
     pub actor: Actor,
     pub kind: EventKind,
     pub card_ids: Vec<u32>,
     pub note: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<DecisionContext>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -85,6 +133,7 @@ impl Match {
             "timeless",
             "brawl",
             "play",
+            "precon",
         ]
         .iter()
         .any(|needle| event.contains(needle))
@@ -129,6 +178,7 @@ mod tests {
             Format::Constructed
         );
         assert_eq!(Match::infer_format("PremierDraft_ECL"), Format::Limited);
+        assert_eq!(Match::infer_format("DualColorPrecons"), Format::Constructed);
         assert_eq!(Match::infer_format("SomethingElse"), Format::Unknown);
     }
 }

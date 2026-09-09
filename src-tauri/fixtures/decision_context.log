@@ -1,0 +1,24 @@
+[UnityCrossThreadLogger]9/8/2026 7:00:00 PM
+{"matchGameRoomStateChangedEvent":{"gameRoomInfo":{"stateType":"MatchGameRoomStateType_Playing","gameRoomConfig":{"matchId":"match-context-001","reservedPlayers":[{"systemSeatId":2,"eventId":"DualColorPrecons"},{"systemSeatId":1,"eventId":"DualColorPrecons"}]}}}}
+[UnityCrossThreadLogger]9/8/2026 7:00:01 PM
+{"greToClientEvent":{"greToClientMessages":[{"type":"GREMessageType_ConnectResp","systemSeatIds":[2],"connectResp":{"deckMessage":{"deckCards":[94111,93877,68398]}}}]}}
+[UnityCrossThreadLogger]9/8/2026 7:00:02 PM
+{"greToClientEvent":{"greToClientMessages":[{"type":"GREMessageType_GameStateMessage","systemSeatIds":[2],"gameStateMessage":{"turnInfo":{"turnNumber":1,"phase":"Phase_Main1","step":"Step_PrecombatMain","activePlayer":2},"players":[{"systemSeatNumber":1,"lifeTotal":20},{"systemSeatNumber":2,"lifeTotal":18}],"zones":[{"zoneId":31,"type":"ZoneType_Hand","ownerSeatId":2,"objectInstanceIds":[219,221]},{"zoneId":35,"type":"ZoneType_Hand","ownerSeatId":1,"objectInstanceIds":[501,502,503]},{"zoneId":28,"type":"ZoneType_Battlefield","objectInstanceIds":[301,401]}],"gameObjects":[{"instanceId":219,"grpId":94111,"ownerSeatId":2,"visibility":"Visibility_Private","zoneId":31},{"instanceId":221,"grpId":93877,"ownerSeatId":2,"visibility":"Visibility_Private","zoneId":31},{"instanceId":501,"grpId":0,"ownerSeatId":1,"visibility":"Visibility_Hidden","zoneId":35},{"instanceId":502,"grpId":0,"ownerSeatId":1,"visibility":"Visibility_Hidden","zoneId":35},{"instanceId":503,"grpId":94051,"ownerSeatId":1,"visibility":"Visibility_Public","zoneId":35},{"instanceId":301,"grpId":93645,"ownerSeatId":2,"visibility":"Visibility_Public","zoneId":28},{"instanceId":401,"grpId":94051,"ownerSeatId":1,"visibility":"Visibility_Public","zoneId":28}]}}]}}
+[UnityCrossThreadLogger]9/8/2026 7:00:03 PM
+{"greToClientEvent":{"greToClientMessages":[{"type":"GREMessageType_ActionsAvailableReq","systemSeatIds":[2],"actionsAvailableReq":{"actions":[{"actionType":"ActionType_Cast","grpId":93877,"instanceId":221},{"actionType":"ActionType_Play","grpId":94111,"instanceId":219},{"actionType":"ActionType_Pass"}]}}]}}
+[UnityCrossThreadLogger]9/8/2026 7:00:04 PM
+{"payload":{"type":"ClientMessageType_MulliganResp","mulliganResp":{"decision":"MulliganOption_AcceptHand"}}}
+[UnityCrossThreadLogger]9/8/2026 7:00:05 PM
+{"greToClientEvent":{"greToClientMessages":[{"type":"GREMessageType_GameStateMessage","systemSeatIds":[2],"gameStateMessage":{"turnInfo":{"turnNumber":1,"phase":"Phase_Main1"},"annotations":[{"id":1,"affectorId":2,"affectedIds":[219],"type":["AnnotationType_ZoneTransfer"],"details":[{"key":"category","type":"KeyValuePairValueType_string","valueString":["PlayLand"]}]}]}}]}}
+[UnityCrossThreadLogger]9/8/2026 7:00:06 PM
+{"greToClientEvent":{"greToClientMessages":[{"type":"GREMessageType_DeclareAttackersReq","systemSeatIds":[2],"declareAttackersReq":{"qualifiedAttackers":[{"attackerInstanceId":301}],"canSubmitAttackers":true}}]}}
+[UnityCrossThreadLogger]9/8/2026 7:00:07 PM
+{"payload":{"type":"ClientMessageType_DeclareAttackersResp","declareAttackersResp":{"selectedAttackers":[{"attackerInstanceId":301}]}}}
+[UnityCrossThreadLogger]9/8/2026 7:00:08 PM
+{"greToClientEvent":{"greToClientMessages":[{"type":"GREMessageType_DeclareBlockersReq","systemSeatIds":[2],"declareBlockersReq":{"blockers":[{"blockerInstanceId":301,"attackerInstanceIds":[401]}]}}]}}
+[UnityCrossThreadLogger]9/8/2026 7:00:09 PM
+{"payload":{"type":"ClientMessageType_DeclareBlockersResp","declareBlockersResp":{"selectedBlockers":[{"blockerInstanceId":301,"selectedAttackerInstanceIds":[401]}]}}}
+[UnityCrossThreadLogger]9/8/2026 7:00:10 PM
+{"greToClientEvent":{"greToClientMessages":[{"type":"GREMessageType_GameStateMessage","systemSeatIds":[2],"gameStateMessage":{"annotations":[{"id":2,"affectorId":2,"affectedIds":[221],"type":["AnnotationType_ZoneTransfer"],"details":[{"key":"category","type":"KeyValuePairValueType_string","valueString":["Draw"]}]}]}}]}}
+[UnityCrossThreadLogger]9/8/2026 7:00:11 PM
+{"greToClientEvent":{"greToClientMessages":[{"type":"GREMessageType_GameStateMessage","systemSeatIds":[2],"gameStateMessage":{"gameInfo":{"matchID":"match-context-001","stage":"GameStage_GameOver","matchState":"MatchState_GameComplete","results":[{"winningTeamId":2}]}}}]}}
