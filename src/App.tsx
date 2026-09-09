@@ -336,7 +336,7 @@ function App() {
 
       <div className="main-content">
         {view.name === "home" ? (
-          <>
+          <div className="home-grid">
         <div className="section-heading">
           <span className="eyebrow">LET’S MAKE EVERY GAME COUNT</span>
           {status?.developer_mode ? (
@@ -557,7 +557,7 @@ function App() {
             </dl>
           </section>
         ) : null}
-          </>
+          </div>
         ) : status?.has_token ? (
           view.name === "matches" ? (
             <MatchList
