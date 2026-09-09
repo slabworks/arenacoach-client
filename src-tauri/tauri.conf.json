@@ -13,12 +13,11 @@
     "windows": [
       {
         "title": "Arena Coach",
-        "width": 800,
+        "width": 1440,
         "height": 900,
         "minWidth": 400,
         "minHeight": 640,
-        "maxWidth": 800,
-        "maxHeight": 1000
+        "maximized": true
       }
     ],
     "security": {

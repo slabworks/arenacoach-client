@@ -299,25 +299,8 @@ fn session_credentials(app: &tauri::AppHandle) -> Result<(String, String), Strin
 }
 
 fn fit_window_to_screen(window: &tauri::WebviewWindow) {
-    const MAX_WIDTH: f64 = 800.0;
-    const MAX_HEIGHT: f64 = 1000.0;
-    const MARGIN: f64 = 72.0;
-    const MIN_WIDTH: f64 = 400.0;
-    const MIN_HEIGHT: f64 = 640.0;
-
-    let Ok(Some(monitor)) = window.current_monitor() else {
-        return;
-    };
-    let scale = monitor.scale_factor();
-    let size = monitor.size();
-    let width = ((size.width as f64 / scale) - MARGIN)
-        .min(MAX_WIDTH)
-        .max(MIN_WIDTH);
-    let height = ((size.height as f64 / scale) - MARGIN)
-        .min(MAX_HEIGHT)
-        .max(MIN_HEIGHT);
-    let _ = window.set_size(tauri::LogicalSize::new(width, height));
-    let _ = window.center();
+    let _ = window.set_max_size(None::<tauri::LogicalSize<f64>>);
+    let _ = window.maximize();
 }
 
 fn empty_to_none(value: String) -> Option<String> {
