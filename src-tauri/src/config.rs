@@ -15,17 +15,13 @@ pub fn platform_name() -> &'static str {
     }
 }
 
-pub fn default_api_base() -> String {
-    if let Ok(from_env) = std::env::var("ARENACOACH_API_BASE") {
-        if !from_env.is_empty() {
-            return from_env;
-        }
-    }
-    if is_dev() {
-        DEV_API_BASE.to_string()
+pub fn api_base_for_mode(developer_mode: bool) -> String {
+    if developer_mode {
+        DEV_API_BASE
     } else {
-        PROD_API_BASE.to_string()
+        PROD_API_BASE
     }
+    .to_string()
 }
 
 pub fn matches_url(api_base: &str) -> String {
@@ -61,12 +57,8 @@ mod tests {
     }
 
     #[test]
-    fn debug_builds_default_to_herd_site() {
-        if is_dev() {
-            let base = default_api_base();
-            if std::env::var("ARENACOACH_API_BASE").is_err() {
-                assert_eq!(base, "https://arenacoach-web.test");
-            }
-        }
+    fn mode_selects_endpoint_independently_of_build() {
+        assert_eq!(api_base_for_mode(false), "https://arenacoach.com");
+        assert_eq!(api_base_for_mode(true), "https://arenacoach-web.test");
     }
 }

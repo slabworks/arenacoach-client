@@ -14,7 +14,9 @@
       {
         "title": "Arena Coach",
         "width": 520,
-        "height": 720
+        "height": 880,
+        "minWidth": 360,
+        "minHeight": 600
       }
     ],
     "security": {

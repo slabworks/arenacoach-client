@@ -34,6 +34,8 @@ pub struct WatcherStatus {
     pub phase: WatchPhase,
     pub platform: String,
     pub is_dev: bool,
+    pub developer_mode: bool,
+    pub show_debug_info: bool,
     pub api_base: String,
     pub has_token: bool,
     pub signed_in_email: Option<String>,
@@ -58,6 +60,8 @@ impl WatcherStatus {
             },
             platform: platform_name().to_string(),
             is_dev: is_dev(),
+            developer_mode: settings.developer_mode,
+            show_debug_info: settings.show_debug_info,
             api_base: settings.api_base(),
             has_token: settings.token().is_some(),
             signed_in_email: settings.user_email(),
@@ -113,6 +117,12 @@ pub async fn run(app: AppHandle, mut commands: tokio::sync::mpsc::Receiver<Watch
     let mut follower = open_follower(&app, true);
     let mut retry_queue: VecDeque<Match> = VecDeque::new();
     let mut posted_lens: HashMap<String, usize> = HashMap::new();
+    let mut environment = app
+        .state::<WatcherShared>()
+        .settings
+        .lock()
+        .unwrap()
+        .api_base();
     let mut ticks: u64 = 0;
     let mut next_retry_at = Instant::now();
 
@@ -120,6 +130,19 @@ pub async fn run(app: AppHandle, mut commands: tokio::sync::mpsc::Receiver<Watch
     ping_and_store(&app, &client).await;
 
     loop {
+        let current_environment = app
+            .state::<WatcherShared>()
+            .settings
+            .lock()
+            .unwrap()
+            .api_base();
+        if environment != current_environment {
+            environment = current_environment;
+            assembler = GreAssembler::new();
+            retry_queue.clear();
+            posted_lens.clear();
+            follower = open_follower(&app, true);
+        }
         ticks += 1;
         if ticks % 25 == 0 {
             ping_and_store(&app, &client).await;
@@ -128,6 +151,15 @@ pub async fn run(app: AppHandle, mut commands: tokio::sync::mpsc::Receiver<Watch
         while let Ok(command) = commands.try_recv() {
             match command {
                 WatchCommand::ReplayFile(path) => {
+                    if !app
+                        .state::<WatcherShared>()
+                        .settings
+                        .lock()
+                        .unwrap()
+                        .developer_mode
+                    {
+                        continue;
+                    }
                     assembler = GreAssembler::new();
                     follower = LogFollower::from_start(path);
                     update_status(&app, |status| {
@@ -138,6 +170,15 @@ pub async fn run(app: AppHandle, mut commands: tokio::sync::mpsc::Receiver<Watch
                     });
                 }
                 WatchCommand::ReplayEmbedded => {
+                    if !app
+                        .state::<WatcherShared>()
+                        .settings
+                        .lock()
+                        .unwrap()
+                        .developer_mode
+                    {
+                        continue;
+                    }
                     if let Err(error) = replay_embedded(&app, &client, &mut posted_lens).await {
                         update_status(&app, |status| {
                             status.phase = WatchPhase::Error;
@@ -150,6 +191,18 @@ pub async fn run(app: AppHandle, mut commands: tokio::sync::mpsc::Receiver<Watch
                     probe_log_status(&app, &mut follower);
                 }
             }
+        }
+
+        // A setting can change while a network request above is awaiting.
+        if environment
+            != app
+                .state::<WatcherShared>()
+                .settings
+                .lock()
+                .unwrap()
+                .api_base()
+        {
+            continue;
         }
 
         match follower.poll() {
@@ -199,7 +252,12 @@ pub async fn run(app: AppHandle, mut commands: tokio::sync::mpsc::Receiver<Watch
 }
 
 fn open_follower(app: &AppHandle, tail: bool) -> LogFollower {
-    let settings = app.state::<WatcherShared>().settings.lock().unwrap().clone();
+    let settings = app
+        .state::<WatcherShared>()
+        .settings
+        .lock()
+        .unwrap()
+        .clone();
     let path = resolve_log_path(&settings);
     update_status(app, |status| {
         status.log_path = path.display().to_string();
@@ -227,7 +285,16 @@ fn probe_log_status(app: &AppHandle, follower: &LogFollower) {
         });
         return;
     }
-    let sample = std::fs::read_to_string(path).unwrap_or_default();
+    let sample = match std::fs::read_to_string(path) {
+        Ok(sample) => sample,
+        Err(error) => {
+            update_status(app, |status| {
+                status.phase = WatchPhase::Error;
+                status.last_error = Some(format!("Cannot read game file: {error}"));
+            });
+            return;
+        }
+    };
     let detected = detect_detailed_logs(&sample);
     update_status(app, |status| {
         status.log_exists = true;
@@ -236,7 +303,12 @@ fn probe_log_status(app: &AppHandle, follower: &LogFollower) {
             DetailedLogs::Off => Some(false),
             DetailedLogs::Unknown => None,
         };
-        if detected == DetailedLogs::Off && status.phase == WatchPhase::Watching {
+        if detected == DetailedLogs::Off
+            && matches!(
+                status.phase,
+                WatchPhase::Watching | WatchPhase::Starting | WatchPhase::LogMissing
+            )
+        {
             status.phase = WatchPhase::DetailedLogsOff;
             status.last_error = Some(
                 "Detailed Logs are off. In Arena: Options → Account → Detailed Logs (Plugin Support), then restart Arena.".into(),
@@ -251,8 +323,14 @@ fn probe_log_status(app: &AppHandle, follower: &LogFollower) {
             status.phase = WatchPhase::Watching;
             status.last_error = None;
         }
-        if detected == DetailedLogs::Unknown && status.phase == WatchPhase::Starting {
+        if detected == DetailedLogs::Unknown
+            && matches!(
+                status.phase,
+                WatchPhase::Starting | WatchPhase::LogMissing | WatchPhase::DetailedLogsOff
+            )
+        {
             status.phase = WatchPhase::Watching;
+            status.last_error = None;
         }
     });
 }
@@ -271,7 +349,9 @@ fn sync_phase(app: &AppHandle, in_match: bool) {
         status.phase = if in_match {
             WatchPhase::MatchInProgress
         } else if status.last_match_id.is_some()
-            && status.last_upload_status.is_some_and(|code| (200..300).contains(&code))
+            && status
+                .last_upload_status
+                .is_some_and(|code| (200..300).contains(&code))
         {
             WatchPhase::Uploaded
         } else {
@@ -311,7 +391,12 @@ async fn upload_match(
     posted_lens: &mut HashMap<String, usize>,
 ) {
     let (api_base, token) = {
-        let settings = app.state::<WatcherShared>().settings.lock().unwrap().clone();
+        let settings = app
+            .state::<WatcherShared>()
+            .settings
+            .lock()
+            .unwrap()
+            .clone();
         (settings.api_base(), settings.token())
     };
     update_status(app, |status| {
@@ -319,7 +404,18 @@ async fn upload_match(
         status.last_match_id = Some(assembled.client_match_id.clone());
         status.last_error = None;
     });
-    match post_match_with_retry(client, &api_base, token.as_deref(), &assembled).await {
+    let result = post_match_with_retry(client, &api_base, token.as_deref(), &assembled).await;
+    if app
+        .state::<WatcherShared>()
+        .settings
+        .lock()
+        .unwrap()
+        .api_base()
+        != api_base
+    {
+        return;
+    }
+    match result {
         Ok(result) => {
             posted_lens.insert(assembled.client_match_id.clone(), assembled.timeline.len());
             update_status(app, |status| {
@@ -354,7 +450,8 @@ async fn replay_embedded(
             finished = Some(assembled);
         }
     }
-    let mut assembled = finished.ok_or_else(|| "Embedded fixture did not produce a match".to_string())?;
+    let mut assembled =
+        finished.ok_or_else(|| "Embedded fixture did not produce a match".to_string())?;
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_millis())
@@ -366,12 +463,26 @@ async fn replay_embedded(
 }
 
 async fn ping_and_store(app: &AppHandle, client: &reqwest::Client) {
-    let api_base = app.state::<WatcherShared>().settings.lock().unwrap().api_base();
+    let api_base = app
+        .state::<WatcherShared>()
+        .settings
+        .lock()
+        .unwrap()
+        .api_base();
     let reachable = ping_host(client, &api_base)
         .await
         .ok()
         .is_some_and(|status| (200..400).contains(&status));
-    update_status(app, |status| status.host_reachable = Some(reachable));
+    if app
+        .state::<WatcherShared>()
+        .settings
+        .lock()
+        .unwrap()
+        .api_base()
+        == api_base
+    {
+        update_status(app, |status| status.host_reachable = Some(reachable));
+    }
 }
 
 fn update_status(app: &AppHandle, mutate: impl FnOnce(&mut WatcherStatus)) {
