@@ -2,12 +2,18 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
+import { CoachingBody, MatchList, MatchShow } from "./MatchViews";
 import {
   connectRealtime,
   loadMatchReport,
   loadRealtimeConfig,
   type MatchReport,
 } from "./realtime";
+
+type View =
+  | { name: "home" }
+  | { name: "matches"; page: number }
+  | { name: "show"; id: string };
 
 type WatchPhase =
   | "starting"
@@ -109,6 +115,7 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [report, setReport] = useState<MatchReport | null>(null);
+  const [view, setView] = useState<View>({ name: "home" });
   const settingsDialog = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -207,6 +214,7 @@ function App() {
   useEffect(() => {
     if (!status?.has_token) {
       setReport(null);
+      setView({ name: "home" });
     }
   }, [status?.has_token]);
 
@@ -289,7 +297,11 @@ function App() {
   return (
     <main className="shell">
       <header className="app-header">
-        <div className="brand">
+        <button
+          className="brand"
+          type="button"
+          onClick={() => setView({ name: "home" })}
+        >
           <div className="brand-mark" aria-hidden="true">
             A<span>✦</span>
           </div>
@@ -299,19 +311,32 @@ function App() {
             </span>
             <span className="brand-caption">YOUR ARENA COMPANION</span>
           </div>
-        </div>
-        <button
-          className="icon-button"
-          aria-label="Open settings"
-          title="Settings"
-          onClick={() => setSettingsOpen(true)}
-          disabled={!status}
-        >
-          <Icon name="settings" />
         </button>
+        <div className="header-actions">
+          {status?.has_token ? (
+            <button
+              className="text-button"
+              type="button"
+              onClick={() => setView({ name: "matches", page: 1 })}
+            >
+              Matches
+            </button>
+          ) : null}
+          <button
+            className="icon-button"
+            aria-label="Open settings"
+            title="Settings"
+            onClick={() => setSettingsOpen(true)}
+            disabled={!status}
+          >
+            <Icon name="settings" />
+          </button>
+        </div>
       </header>
 
       <div className="main-content">
+        {view.name === "home" ? (
+          <>
         <div className="section-heading">
           <span className="eyebrow">LET’S MAKE EVERY GAME COUNT</span>
           {status?.developer_mode ? (
@@ -377,6 +402,12 @@ function App() {
               Boolean(status.last_match_id) &&
               (report?.client_match_id !== status.last_match_id ||
                 report?.coaching_status === "pending")
+            }
+            onOpenAll={() => setView({ name: "matches", page: 1 })}
+            onOpenLatest={
+              status.last_match_id
+                ? () => setView({ name: "show", id: status.last_match_id! })
+                : undefined
             }
           />
         ) : null}
@@ -526,6 +557,24 @@ function App() {
             </dl>
           </section>
         ) : null}
+          </>
+        ) : status?.has_token ? (
+          view.name === "matches" ? (
+            <MatchList
+              page={view.page}
+              onOpen={(id) => setView({ name: "show", id })}
+              onBack={() => setView({ name: "home" })}
+              onPage={(next) => setView({ name: "matches", page: next })}
+            />
+          ) : (
+            <MatchShow
+              clientMatchId={view.id}
+              liveReport={report}
+              onBack={() => setView({ name: "matches", page: 1 })}
+              onDeleted={() => setView({ name: "matches", page: 1 })}
+            />
+          )
+        ) : null}
       </div>
 
       <footer>
@@ -619,9 +668,13 @@ function App() {
 function ReportCard({
   report,
   waiting,
+  onOpenAll,
+  onOpenLatest,
 }: {
   report: MatchReport | null;
   waiting: boolean;
+  onOpenAll: () => void;
+  onOpenLatest?: () => void;
 }) {
   return (
     <section className="report-card" aria-labelledby="report-title">
@@ -637,46 +690,22 @@ function ReportCard({
               : report?.event_id ?? "Play a match to see notes here."}
           </p>
         </div>
-      </div>
-      {waiting ? (
-        <p className="report-waiting">Notes will appear here instantly.</p>
-      ) : report?.coaching_status === "empty" ? (
-        <p className="report-waiting">
-          No timeline to coach. Enable Detailed Logs and play another game.
-        </p>
-      ) : report?.coaching_status === "failed" ? (
-        <p className="error" role="alert">
-          Coaching failed
-          {report.coaching_error ? `: ${report.coaching_error}` : "."}
-        </p>
-      ) : report?.coaching_status === "ready" ? (
-        <div className="report-body">
-          {report.analysis ? <p className="report-analysis">{report.analysis}</p> : null}
-          {(report.tips ?? []).length > 0 ? (
-            <ol className="report-tips">
-              {(report.tips ?? []).map((tip, index) => (
-                <li key={`${tip.turn}-${index}`}>
-                  <div className="report-tip-head">
-                    <span>Turn {tip.turn}</span>
-                    <strong>{tip.title}</strong>
-                  </div>
-                  <p>{tip.body}</p>
-                  {tip.better_line ? (
-                    <p className="report-better">
-                      <span>Better line</span>
-                      {tip.better_line}
-                    </p>
-                  ) : null}
-                </li>
-              ))}
-            </ol>
+        <div className="match-actions">
+          {onOpenLatest ? (
+            <button className="text-button" type="button" onClick={onOpenLatest}>
+              Open
+            </button>
           ) : null}
+          <button className="text-button" type="button" onClick={onOpenAll}>
+            All matches
+          </button>
         </div>
-      ) : (
-        <p className="report-waiting">
-          Your next completed match will sync automatically.
-        </p>
-      )}
+      </div>
+      <CoachingBody
+        report={report}
+        cards={report?.cards ?? {}}
+        waiting={waiting}
+      />
     </section>
   );
 }

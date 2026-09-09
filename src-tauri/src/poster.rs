@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
 
+use std::collections::HashMap;
+
 use crate::config::{
-    broadcasting_auth_url, device_login_url, device_logout_url, health_url, is_dev, match_url,
-    matches_url, realtime_url,
+    broadcasting_auth_url, card_image_url, device_login_url, device_logout_url, health_url, is_dev,
+    match_url, matches_page_url, matches_url, realtime_url,
 };
 use crate::match_payload::Match;
 
@@ -47,6 +49,40 @@ pub struct MatchReport {
     pub analysis: Option<String>,
     pub tips: Option<Vec<serde_json::Value>>,
     pub coaching_error: Option<String>,
+    #[serde(default)]
+    pub player_seat: Option<u32>,
+    #[serde(default)]
+    pub deck_grp_ids: Option<Vec<u32>>,
+    #[serde(default)]
+    pub timeline: Option<Vec<serde_json::Value>>,
+    #[serde(default)]
+    pub cards: HashMap<String, CardRef>,
+    #[serde(default)]
+    pub created_at: Option<String>,
+    #[serde(default)]
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CardRef {
+    pub name: String,
+    #[serde(default)]
+    pub type_line: Option<String>,
+    #[serde(default)]
+    pub oracle_text: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MatchPage {
+    pub data: Vec<MatchReport>,
+    pub meta: MatchPageMeta,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MatchPageMeta {
+    pub current_page: u32,
+    pub last_page: u32,
+    pub total: u32,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -91,6 +127,17 @@ struct RealtimeResponse {
 #[derive(Debug, Deserialize)]
 struct MatchResponse {
     data: MatchReport,
+}
+
+#[derive(Debug, Deserialize)]
+struct CardImageResponse {
+    url: String,
+}
+
+fn json_headers(request: reqwest::RequestBuilder, token: &str) -> reqwest::RequestBuilder {
+    request
+        .header("Accept", "application/json")
+        .bearer_auth(token)
 }
 
 pub fn http_client() -> reqwest::Result<reqwest::Client> {
@@ -266,18 +313,85 @@ pub async fn fetch_match_report(
     token: &str,
     client_match_id: &str,
 ) -> Result<MatchReport, PostError> {
-    let response = client
-        .get(match_url(api_base, client_match_id))
-        .header("Accept", "application/json")
-        .bearer_auth(token)
+    let response = json_headers(client.get(match_url(api_base, client_match_id)), token)
         .send()
         .await?;
+    parse_match_response(response).await
+}
+
+pub async fn fetch_matches(
+    client: &reqwest::Client,
+    api_base: &str,
+    token: &str,
+    page: u32,
+) -> Result<MatchPage, PostError> {
+    let response = json_headers(client.get(matches_page_url(api_base, page)), token)
+        .send()
+        .await?;
+    let status = response.status().as_u16();
+    let body = response.text().await.unwrap_or_default();
+    if (200..300).contains(&status) {
+        return Ok(serde_json::from_str(&body)?);
+    }
+    Err(PostError::Http { status, body })
+}
+
+pub async fn delete_match(
+    client: &reqwest::Client,
+    api_base: &str,
+    token: &str,
+    client_match_id: &str,
+) -> Result<(), PostError> {
+    let response = json_headers(client.delete(match_url(api_base, client_match_id)), token)
+        .send()
+        .await?;
+    let status = response.status().as_u16();
+    if (200..300).contains(&status) {
+        return Ok(());
+    }
+    Err(PostError::Http {
+        status,
+        body: response.text().await.unwrap_or_default(),
+    })
+}
+
+async fn parse_match_response(response: reqwest::Response) -> Result<MatchReport, PostError> {
     let status = response.status().as_u16();
     let body = response.text().await.unwrap_or_default();
     if (200..300).contains(&status) {
         let parsed: MatchResponse = serde_json::from_str(&body)?;
         return Ok(parsed.data);
     }
+    Err(PostError::Http { status, body })
+}
+
+pub async fn fetch_card_image(
+    client: &reqwest::Client,
+    api_base: &str,
+    token: &str,
+    grp_id: u32,
+) -> Result<Option<String>, PostError> {
+    if grp_id < 1 {
+        return Ok(None);
+    }
+
+    let response = json_headers(client.get(card_image_url(api_base, grp_id)), token)
+        .send()
+        .await?;
+    let status = response.status().as_u16();
+    if status == 404 {
+        return Ok(None);
+    }
+
+    let body = response.text().await.unwrap_or_default();
+    if (200..300).contains(&status) {
+        let parsed: CardImageResponse = serde_json::from_str(&body)?;
+        if parsed.url.is_empty() {
+            return Ok(None);
+        }
+        return Ok(Some(parsed.url));
+    }
+
     Err(PostError::Http { status, body })
 }
 

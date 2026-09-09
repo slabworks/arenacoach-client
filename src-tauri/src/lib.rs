@@ -15,8 +15,9 @@ use tauri::Manager;
 
 use config::platform_name;
 use poster::{
-    authorize_broadcast, fetch_match_report, fetch_realtime, http_client, login_device,
-    logout_device, MatchReport, PostError, RealtimeConfig,
+    authorize_broadcast, delete_match, fetch_card_image, fetch_match_report, fetch_matches,
+    fetch_realtime, http_client, login_device, logout_device, MatchPage, MatchReport, PostError,
+    RealtimeConfig,
 };
 use settings::Settings;
 use watcher::{current_status, resolve_log_path, WatchCommand, WatcherShared, WatcherStatus};
@@ -249,6 +250,33 @@ async fn get_match_report(
 }
 
 #[tauri::command]
+async fn list_matches(app: tauri::AppHandle, page: Option<u32>) -> Result<MatchPage, String> {
+    let (api_base, token) = session_credentials(&app)?;
+    let client = http_client().map_err(|error| error.to_string())?;
+    fetch_matches(&client, &api_base, &token, page.unwrap_or(1))
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn remove_match(app: tauri::AppHandle, client_match_id: String) -> Result<(), String> {
+    let (api_base, token) = session_credentials(&app)?;
+    let client = http_client().map_err(|error| error.to_string())?;
+    delete_match(&client, &api_base, &token, &client_match_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn get_card_image(app: tauri::AppHandle, grp_id: u32) -> Result<Option<String>, String> {
+    let (api_base, token) = session_credentials(&app)?;
+    let client = http_client().map_err(|error| error.to_string())?;
+    fetch_card_image(&client, &api_base, &token, grp_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 async fn authorize_channel(
     app: tauri::AppHandle,
     socket_id: String,
@@ -264,7 +292,9 @@ async fn authorize_channel(
 fn session_credentials(app: &tauri::AppHandle) -> Result<(String, String), String> {
     let shared = app.state::<WatcherShared>();
     let settings = shared.settings.lock().map_err(|error| error.to_string())?;
-    let token = settings.token().ok_or_else(|| "not signed in".to_string())?;
+    let token = settings
+        .token()
+        .ok_or_else(|| "not signed in".to_string())?;
     Ok((settings.api_base(), token))
 }
 
@@ -338,6 +368,9 @@ pub fn run() {
             get_realtime_session,
             get_realtime_config,
             get_match_report,
+            list_matches,
+            remove_match,
+            get_card_image,
             authorize_channel
         ])
         .run(tauri::generate_context!())

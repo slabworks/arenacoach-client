@@ -27,25 +27,33 @@ html {
   background: #101412;
 }
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 button {
   cursor: pointer;
 }
 button:disabled,
-input:disabled {
+input:disabled,
+select:disabled,
+textarea:disabled {
   opacity: 0.5;
   cursor: default;
 }
 button,
-input {
+input,
+select,
+textarea {
   transition:
     background 0.18s,
     border-color 0.18s;
 }
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
   outline: 2px solid #cced9b;
   outline-offset: 4px;
 }
@@ -76,6 +84,15 @@ p {
   display: flex;
   gap: 11px;
   align-items: center;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .brand-mark {
   width: 39px;
@@ -403,7 +420,9 @@ form label {
   color: #b7c1b4;
   margin-bottom: 6px;
 }
-input:not([type="checkbox"]) {
+input:not([type="checkbox"]),
+select,
+textarea {
   background: #101612;
   border: 1px solid #354033;
   border-radius: 7px;
@@ -412,6 +431,14 @@ input:not([type="checkbox"]) {
   width: 100%;
   font-size: 12px;
   margin-bottom: 14px;
+}
+select {
+  appearance: none;
+}
+textarea {
+  min-height: 180px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  resize: vertical;
 }
 input::placeholder {
   color: #697568;
@@ -477,6 +504,150 @@ input::placeholder {
   border-top: 1px solid #2e382d;
   font-size: 11px;
   color: #97a58f;
+}
+.match-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+  align-items: center;
+}
+.match-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.match-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "title result"
+    "meta meta"
+    "id id";
+  gap: 4px 12px;
+  text-align: left;
+  background: #121812;
+  border: 1px solid #2e382d;
+  border-radius: 10px;
+  padding: 12px;
+  color: inherit;
+}
+.match-row strong {
+  grid-area: title;
+  font-size: 13px;
+}
+.match-row-meta {
+  grid-area: meta;
+  font-size: 11px;
+  color: #97a58f;
+}
+.match-row-id {
+  grid-area: id;
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #7f8c7c;
+  overflow-wrap: anywhere;
+}
+.result-pill {
+  grid-area: result;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
+  min-width: 52px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  background: #2a3328;
+  color: #c5d0be;
+}
+.result-pill.win {
+  background: #243321;
+  color: #cbe8a8;
+}
+.result-pill.loss {
+  background: #3a2420;
+  color: #edb7a8;
+}
+.match-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  font-size: 11px;
+  color: #97a58f;
+}
+.match-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 0;
+}
+.match-meta dt {
+  font-size: 10px;
+  color: #8f9d90;
+}
+.match-meta dd {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+.timeline-wrap {
+  margin-top: 20px;
+  overflow-x: auto;
+}
+.timeline-wrap h3 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 550;
+}
+.timeline-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.timeline-table th,
+.timeline-table td {
+  padding: 8px 6px;
+  text-align: left;
+  vertical-align: top;
+  border-top: 1px dashed #2e382d;
+}
+.timeline-table th {
+  color: #8f9d90;
+  font-weight: 550;
+  border-top: 0;
+}
+.timeline-table tr.new-turn td {
+  border-top: 1px solid #3d4a3c;
+}
+.card-name {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.card-image-float {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid #2e382d;
+  background: #000;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+.card-image-float img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.text-button.danger {
+  color: #edb7a8;
 }
 .text-button {
   background: none;
@@ -685,6 +856,9 @@ dialog::backdrop {
   }
   .account-card {
     padding: 16px;
+  }
+  .match-meta {
+    grid-template-columns: 1fr;
   }
 }
 @media (prefers-reduced-motion: reduce) {

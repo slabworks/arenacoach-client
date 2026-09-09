@@ -28,6 +28,10 @@ pub fn matches_url(api_base: &str) -> String {
     format!("{}/api/matches", api_base.trim_end_matches('/'))
 }
 
+pub fn matches_page_url(api_base: &str, page: u32) -> String {
+    format!("{}?page={}", matches_url(api_base), page.max(1))
+}
+
 pub fn health_url(api_base: &str) -> String {
     format!("{}/up", api_base.trim_end_matches('/'))
 }
@@ -56,6 +60,14 @@ pub fn match_url(api_base: &str, client_match_id: &str) -> String {
     )
 }
 
+pub fn card_image_url(api_base: &str, grp_id: u32) -> String {
+    format!(
+        "{}/api/cards/{}/image",
+        api_base.trim_end_matches('/'),
+        grp_id
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -77,6 +89,14 @@ mod tests {
         assert_eq!(
             match_url("https://arenacoach-web.test/", "match-1"),
             "https://arenacoach-web.test/api/matches/match-1"
+        );
+        assert_eq!(
+            card_image_url("https://arenacoach-web.test/", 73951),
+            "https://arenacoach-web.test/api/cards/73951/image"
+        );
+        assert_eq!(
+            matches_page_url("https://arenacoach-web.test/", 2),
+            "https://arenacoach-web.test/api/matches?page=2"
         );
     }
 

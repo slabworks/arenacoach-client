@@ -1,28 +1,10 @@
 import Echo from "laravel-echo";
 import Pusher, { type ChannelAuthorizationCallback } from "pusher-js";
 import { invoke } from "@tauri-apps/api/core";
+import { loadMatchReport, type MatchReport } from "./matches";
 
-export type CoachingStatus = "pending" | "ready" | "empty" | "failed";
-
-export type CoachingTip = {
-  turn: number;
-  title: string;
-  body: string;
-  better_line?: string;
-  cite: number;
-};
-
-export type MatchReport = {
-  id: number;
-  client_match_id: string;
-  event_id: string;
-  format: string;
-  result: string;
-  coaching_status: CoachingStatus;
-  analysis: string | null;
-  tips: CoachingTip[] | null;
-  coaching_error: string | null;
-};
+export type { CoachingStatus, CoachingTip, MatchReport } from "./matches";
+export { loadMatchReport };
 
 export type RealtimeConfig = {
   user_id: number;
@@ -41,14 +23,6 @@ type PusherChannel = {
 
 export async function loadRealtimeConfig(): Promise<RealtimeConfig> {
   return invoke<RealtimeConfig>("get_realtime_config");
-}
-
-export async function loadMatchReport(
-  clientMatchId: string,
-): Promise<MatchReport> {
-  return invoke<MatchReport>("get_match_report", {
-    clientMatchId,
-  });
 }
 
 export function connectRealtime(
