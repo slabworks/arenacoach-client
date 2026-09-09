@@ -40,6 +40,22 @@ pub fn device_logout_url(api_base: &str) -> String {
     format!("{}/api/device/logout", api_base.trim_end_matches('/'))
 }
 
+pub fn realtime_url(api_base: &str) -> String {
+    format!("{}/api/realtime", api_base.trim_end_matches('/'))
+}
+
+pub fn broadcasting_auth_url(api_base: &str) -> String {
+    format!("{}/api/broadcasting/auth", api_base.trim_end_matches('/'))
+}
+
+pub fn match_url(api_base: &str, client_match_id: &str) -> String {
+    format!(
+        "{}/api/matches/{}",
+        api_base.trim_end_matches('/'),
+        client_match_id
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -53,6 +69,14 @@ mod tests {
         assert_eq!(
             device_login_url("https://arenacoach-web.test/"),
             "https://arenacoach-web.test/api/device/login"
+        );
+        assert_eq!(
+            realtime_url("https://arenacoach-web.test/"),
+            "https://arenacoach-web.test/api/realtime"
+        );
+        assert_eq!(
+            match_url("https://arenacoach-web.test/", "match-1"),
+            "https://arenacoach-web.test/api/matches/match-1"
         );
     }
 

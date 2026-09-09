@@ -14,7 +14,10 @@ use serde::Deserialize;
 use tauri::Manager;
 
 use config::platform_name;
-use poster::{http_client, login_device, logout_device, PostError};
+use poster::{
+    authorize_broadcast, fetch_match_report, fetch_realtime, http_client, login_device,
+    logout_device, MatchReport, PostError, RealtimeConfig,
+};
 use settings::Settings;
 use watcher::{current_status, resolve_log_path, WatchCommand, WatcherShared, WatcherStatus};
 
@@ -115,6 +118,7 @@ async fn sign_in(app: tauri::AppHandle, payload: SignInPayload) -> Result<Watche
         return Err("Environment changed. Please sign in again.".into());
     }
     settings.token = Some(session.token);
+    settings.user_id = Some(session.user_id);
     settings.user_email = Some(session.email);
     settings.user_name = Some(session.name);
     settings
@@ -145,6 +149,7 @@ async fn sign_out(app: tauri::AppHandle) -> Result<WatcherStatus, String> {
     }
     let mut settings = shared.settings.lock().map_err(|error| error.to_string())?;
     settings.token = None;
+    settings.user_id = None;
     settings.user_email = None;
     settings.user_name = None;
     settings
@@ -193,6 +198,98 @@ fn replay_fixture(app: tauri::AppHandle) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+#[derive(Debug, serde::Serialize)]
+struct RealtimeSession {
+    token: String,
+    user_id: Option<i64>,
+    api_base: String,
+}
+
+#[tauri::command]
+fn get_realtime_session(app: tauri::AppHandle) -> Result<Option<RealtimeSession>, String> {
+    let shared = app.state::<WatcherShared>();
+    let settings = shared.settings.lock().map_err(|error| error.to_string())?;
+    let Some(token) = settings.token() else {
+        return Ok(None);
+    };
+
+    Ok(Some(RealtimeSession {
+        token,
+        user_id: settings.user_id(),
+        api_base: settings.api_base(),
+    }))
+}
+
+#[tauri::command]
+async fn get_realtime_config(app: tauri::AppHandle) -> Result<RealtimeConfig, String> {
+    let (api_base, token) = session_credentials(&app)?;
+    let client = http_client().map_err(|error| error.to_string())?;
+    let config = fetch_realtime(&client, &api_base, &token)
+        .await
+        .map_err(|error| error.to_string())?;
+    if let Ok(mut settings) = app.state::<WatcherShared>().settings.lock() {
+        if settings.user_id() != Some(config.user_id) {
+            settings.user_id = Some(config.user_id);
+            let _ = settings.save(&app.state::<WatcherShared>().settings_path);
+        }
+    }
+    Ok(config)
+}
+
+#[tauri::command]
+async fn get_match_report(
+    app: tauri::AppHandle,
+    client_match_id: String,
+) -> Result<MatchReport, String> {
+    let (api_base, token) = session_credentials(&app)?;
+    let client = http_client().map_err(|error| error.to_string())?;
+    fetch_match_report(&client, &api_base, &token, &client_match_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn authorize_channel(
+    app: tauri::AppHandle,
+    socket_id: String,
+    channel_name: String,
+) -> Result<serde_json::Value, String> {
+    let (api_base, token) = session_credentials(&app)?;
+    let client = http_client().map_err(|error| error.to_string())?;
+    authorize_broadcast(&client, &api_base, &token, &socket_id, &channel_name)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+fn session_credentials(app: &tauri::AppHandle) -> Result<(String, String), String> {
+    let shared = app.state::<WatcherShared>();
+    let settings = shared.settings.lock().map_err(|error| error.to_string())?;
+    let token = settings.token().ok_or_else(|| "not signed in".to_string())?;
+    Ok((settings.api_base(), token))
+}
+
+fn fit_window_to_screen(window: &tauri::WebviewWindow) {
+    const MAX_WIDTH: f64 = 800.0;
+    const MAX_HEIGHT: f64 = 1000.0;
+    const MARGIN: f64 = 72.0;
+    const MIN_WIDTH: f64 = 400.0;
+    const MIN_HEIGHT: f64 = 640.0;
+
+    let Ok(Some(monitor)) = window.current_monitor() else {
+        return;
+    };
+    let scale = monitor.scale_factor();
+    let size = monitor.size();
+    let width = ((size.width as f64 / scale) - MARGIN)
+        .min(MAX_WIDTH)
+        .max(MIN_WIDTH);
+    let height = ((size.height as f64 / scale) - MARGIN)
+        .min(MAX_HEIGHT)
+        .max(MIN_HEIGHT);
+    let _ = window.set_size(tauri::LogicalSize::new(width, height));
+    let _ = window.center();
+}
+
 fn empty_to_none(value: String) -> Option<String> {
     let trimmed = value.trim().to_string();
     if trimmed.is_empty() {
@@ -222,6 +319,9 @@ pub fn run() {
                 settings_path,
                 commands: tx,
             });
+            if let Some(window) = app.get_webview_window("main") {
+                fit_window_to_screen(&window);
+            }
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 watcher::run(handle, rx).await;
@@ -234,7 +334,11 @@ pub fn run() {
             sign_in,
             sign_out,
             replay_log,
-            replay_fixture
+            replay_fixture,
+            get_realtime_session,
+            get_realtime_config,
+            get_match_report,
+            authorize_channel
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

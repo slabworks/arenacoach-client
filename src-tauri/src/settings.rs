@@ -13,6 +13,8 @@ pub struct Settings {
     #[serde(default)]
     pub token: Option<String>,
     #[serde(default)]
+    pub user_id: Option<i64>,
+    #[serde(default)]
     pub user_email: Option<String>,
     #[serde(default)]
     pub user_name: Option<String>,
@@ -59,6 +61,7 @@ impl Settings {
 
     fn clear_session(&mut self) {
         self.token = None;
+        self.user_id = None;
         self.user_email = None;
         self.user_name = None;
     }
@@ -79,6 +82,10 @@ impl Settings {
             .as_deref()
             .filter(|value| !value.is_empty())
             .map(ToOwned::to_owned)
+    }
+
+    pub fn user_id(&self) -> Option<i64> {
+        self.user_id.filter(|id| *id > 0)
     }
 }
 

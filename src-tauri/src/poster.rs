@@ -1,6 +1,9 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-use crate::config::{device_login_url, device_logout_url, health_url, is_dev, matches_url};
+use crate::config::{
+    broadcasting_auth_url, device_login_url, device_logout_url, health_url, is_dev, match_url,
+    matches_url, realtime_url,
+};
 use crate::match_payload::Match;
 
 #[derive(Debug, Clone)]
@@ -13,8 +16,37 @@ pub struct PostResult {
 #[derive(Debug, Clone)]
 pub struct DeviceSession {
     pub token: String,
+    pub user_id: i64,
     pub email: String,
     pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReverbConfig {
+    pub key: String,
+    pub host: String,
+    pub port: u16,
+    pub scheme: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RealtimeConfig {
+    pub user_id: i64,
+    pub channel: String,
+    pub reverb: ReverbConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MatchReport {
+    pub id: i64,
+    pub client_match_id: String,
+    pub event_id: String,
+    pub format: String,
+    pub result: String,
+    pub coaching_status: String,
+    pub analysis: Option<String>,
+    pub tips: Option<Vec<serde_json::Value>>,
+    pub coaching_error: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -46,8 +78,19 @@ struct LoginData {
 
 #[derive(Debug, Deserialize)]
 struct LoginUser {
+    id: i64,
     email: String,
     name: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RealtimeResponse {
+    data: RealtimeConfig,
+}
+
+#[derive(Debug, Deserialize)]
+struct MatchResponse {
+    data: MatchReport,
 }
 
 pub fn http_client() -> reqwest::Result<reqwest::Client> {
@@ -157,6 +200,7 @@ pub async fn login_device(
         if let Some(data) = parsed.data {
             return Ok(DeviceSession {
                 token: data.token,
+                user_id: data.user.id,
                 email: data.user.email,
                 name: data.user.name,
             });
@@ -194,6 +238,72 @@ pub async fn logout_device(
 pub async fn ping_host(client: &reqwest::Client, api_base: &str) -> Result<u16, PostError> {
     let response = client.get(health_url(api_base)).send().await?;
     Ok(response.status().as_u16())
+}
+
+pub async fn fetch_realtime(
+    client: &reqwest::Client,
+    api_base: &str,
+    token: &str,
+) -> Result<RealtimeConfig, PostError> {
+    let response = client
+        .get(realtime_url(api_base))
+        .header("Accept", "application/json")
+        .bearer_auth(token)
+        .send()
+        .await?;
+    let status = response.status().as_u16();
+    let body = response.text().await.unwrap_or_default();
+    if (200..300).contains(&status) {
+        let parsed: RealtimeResponse = serde_json::from_str(&body)?;
+        return Ok(parsed.data);
+    }
+    Err(PostError::Http { status, body })
+}
+
+pub async fn fetch_match_report(
+    client: &reqwest::Client,
+    api_base: &str,
+    token: &str,
+    client_match_id: &str,
+) -> Result<MatchReport, PostError> {
+    let response = client
+        .get(match_url(api_base, client_match_id))
+        .header("Accept", "application/json")
+        .bearer_auth(token)
+        .send()
+        .await?;
+    let status = response.status().as_u16();
+    let body = response.text().await.unwrap_or_default();
+    if (200..300).contains(&status) {
+        let parsed: MatchResponse = serde_json::from_str(&body)?;
+        return Ok(parsed.data);
+    }
+    Err(PostError::Http { status, body })
+}
+
+pub async fn authorize_broadcast(
+    client: &reqwest::Client,
+    api_base: &str,
+    token: &str,
+    socket_id: &str,
+    channel_name: &str,
+) -> Result<serde_json::Value, PostError> {
+    let response = client
+        .post(broadcasting_auth_url(api_base))
+        .header("Accept", "application/json")
+        .bearer_auth(token)
+        .json(&serde_json::json!({
+            "socket_id": socket_id,
+            "channel_name": channel_name,
+        }))
+        .send()
+        .await?;
+    let status = response.status().as_u16();
+    let body = response.text().await.unwrap_or_default();
+    if (200..300).contains(&status) {
+        return Ok(serde_json::from_str(&body)?);
+    }
+    Err(PostError::Http { status, body })
 }
 
 #[cfg(test)]

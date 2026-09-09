@@ -2,6 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
+import {
+  connectRealtime,
+  loadMatchReport,
+  loadRealtimeConfig,
+  type MatchReport,
+} from "./realtime";
 
 type WatchPhase =
   | "starting"
@@ -78,6 +84,12 @@ function gameStatus(status: WatcherStatus | null) {
       detail: "Sending your latest game to Arena Coach.",
       tone: "live",
     };
+  if (status.phase === "uploaded")
+    return {
+      title: "Match synced",
+      detail: "Your notes will land here as soon as the coach finishes.",
+      tone: "live",
+    };
   return {
     title: "Reading your games",
     detail:
@@ -96,6 +108,7 @@ function App() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [report, setReport] = useState<MatchReport | null>(null);
   const settingsDialog = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -128,6 +141,74 @@ function App() {
     if (settingsOpen) settingsDialog.current?.showModal();
     else settingsDialog.current?.close();
   }, [settingsOpen]);
+
+  useEffect(() => {
+    if (!status?.has_token) {
+      return;
+    }
+    let disposed = false;
+    let echo: ReturnType<typeof connectRealtime> | undefined;
+    void loadRealtimeConfig()
+      .then((config) => {
+        if (disposed) {
+          return;
+        }
+        echo = connectRealtime(config, (next) => {
+          if (!disposed) {
+            setReport(next);
+          }
+        });
+      })
+      .catch(() => {
+        // Polling still recovers the report if Reverb is down.
+      });
+    return () => {
+      disposed = true;
+      echo?.disconnect();
+    };
+  }, [status?.has_token, status?.api_base]);
+
+  useEffect(() => {
+    const matchId = status?.last_match_id;
+    if (!status?.has_token || !matchId) {
+      return;
+    }
+    if (
+      report?.client_match_id === matchId &&
+      report.coaching_status !== "pending"
+    ) {
+      return;
+    }
+    let disposed = false;
+    const load = () => {
+      void loadMatchReport(matchId)
+        .then((next) => {
+          if (!disposed) {
+            setReport(next);
+          }
+        })
+        .catch(() => {
+          // Keep waiting; the next tick or Reverb event will retry.
+        });
+    };
+    load();
+    const timer = window.setInterval(load, 3000);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
+  }, [
+    status?.has_token,
+    status?.last_match_id,
+    report?.client_match_id,
+    report?.coaching_status,
+  ]);
+
+  useEffect(() => {
+    if (!status?.has_token) {
+      setReport(null);
+    }
+  }, [status?.has_token]);
 
   async function updateSetting(patch: {
     developer_mode?: boolean;
@@ -286,6 +367,19 @@ function App() {
             )}
           </div>
         </section>
+
+        {status?.has_token ? (
+          <ReportCard
+            report={
+              report?.client_match_id === status.last_match_id ? report : null
+            }
+            waiting={
+              Boolean(status.last_match_id) &&
+              (report?.client_match_id !== status.last_match_id ||
+                report?.coaching_status === "pending")
+            }
+          />
+        ) : null}
 
         <section className="account-card" aria-labelledby="account-title">
           <div className="account-heading">
@@ -519,6 +613,71 @@ function App() {
         </p>
       </dialog>
     </main>
+  );
+}
+
+function ReportCard({
+  report,
+  waiting,
+}: {
+  report: MatchReport | null;
+  waiting: boolean;
+}) {
+  return (
+    <section className="report-card" aria-labelledby="report-title">
+      <div className="account-heading">
+        <div className="small-icon">
+          <Icon name="activity" />
+        </div>
+        <div>
+          <h2 id="report-title">Match report</h2>
+          <p>
+            {waiting
+              ? "The coach is writing notes for your latest game."
+              : report?.event_id ?? "Play a match to see notes here."}
+          </p>
+        </div>
+      </div>
+      {waiting ? (
+        <p className="report-waiting">Notes will appear here instantly.</p>
+      ) : report?.coaching_status === "empty" ? (
+        <p className="report-waiting">
+          No timeline to coach. Enable Detailed Logs and play another game.
+        </p>
+      ) : report?.coaching_status === "failed" ? (
+        <p className="error" role="alert">
+          Coaching failed
+          {report.coaching_error ? `: ${report.coaching_error}` : "."}
+        </p>
+      ) : report?.coaching_status === "ready" ? (
+        <div className="report-body">
+          {report.analysis ? <p className="report-analysis">{report.analysis}</p> : null}
+          {(report.tips ?? []).length > 0 ? (
+            <ol className="report-tips">
+              {(report.tips ?? []).map((tip, index) => (
+                <li key={`${tip.turn}-${index}`}>
+                  <div className="report-tip-head">
+                    <span>Turn {tip.turn}</span>
+                    <strong>{tip.title}</strong>
+                  </div>
+                  <p>{tip.body}</p>
+                  {tip.better_line ? (
+                    <p className="report-better">
+                      <span>Better line</span>
+                      {tip.better_line}
+                    </p>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
+          ) : null}
+        </div>
+      ) : (
+        <p className="report-waiting">
+          Your next completed match will sync automatically.
+        </p>
+      )}
+    </section>
   );
 }
 
