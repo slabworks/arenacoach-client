@@ -2,6 +2,12 @@
   "name": "arenacoach-local",
   "private": true,
   "version": "0.1.0",
+  "description": "Arena Coach desktop companion — unofficial MTG Arena post-game watcher",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/slabworks/arenacoach-client.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",

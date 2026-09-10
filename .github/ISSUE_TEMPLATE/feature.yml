@@ -1,0 +1,23 @@
+name: Feature request
+description: Propose a change to the desktop companion
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is hard or missing today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        Large ideas are easier to land if you talk them through on
+        [Discord](https://discord.gg/9AjGBjGp6Q) first.
+        Live overlays and raw log uploads are out of scope.
