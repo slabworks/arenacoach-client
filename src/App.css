@@ -160,9 +160,55 @@ p {
   .home-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
-    align-items: start;
+    grid-template-areas:
+      "heading heading"
+      "game report"
+      "account stats"
+      "note note";
+    align-items: stretch;
   }
-  .home-grid > .section-heading,
+  .home-grid:not(:has(.report-card)) {
+    grid-template-areas:
+      "heading heading"
+      "game stats"
+      "account ."
+      "note note";
+  }
+  .home-grid > .section-heading {
+    grid-area: heading;
+  }
+  .home-grid > .game-card {
+    grid-area: game;
+  }
+  .home-grid > .report-card {
+    grid-area: report;
+  }
+  .home-grid > .stats-card {
+    grid-area: stats;
+    display: flex;
+    flex-direction: column;
+  }
+  .home-grid > .account-card {
+    grid-area: account;
+    display: flex;
+    flex-direction: column;
+  }
+  .home-grid > .stats-card .stats-grid {
+    flex: 1;
+    align-items: stretch;
+  }
+  .home-grid > .stats-card .stats-metric {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .home-grid > .account-card .signed-in-details,
+  .home-grid > .account-card > form:first-of-type {
+    margin-top: auto;
+  }
+  .home-grid > .companion-note {
+    grid-area: note;
+  }
   .home-grid > .debug-card {
     grid-column: 1 / -1;
   }
@@ -332,11 +378,43 @@ h1 {
   color: #c2dfa6;
 }
 .account-card,
-.report-card {
+.report-card,
+.stats-card {
   border: 1px solid #2c352e;
   background: #171c18;
   border-radius: 15px;
   padding: 20px;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+.stats-metric {
+  background: #121812;
+  border: 1px solid #2e382d;
+  border-radius: 10px;
+  padding: 12px 8px;
+  text-align: center;
+}
+.stats-metric dt {
+  font-size: 9px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #8f9d90;
+}
+.stats-metric dd {
+  margin: 6px 0 0;
+  font-size: 22px;
+  font-weight: 550;
+  letter-spacing: -0.6px;
+}
+.stats-metric.win dd {
+  color: #cbe8a8;
+}
+.stats-metric.loss dd {
+  color: #edb7a8;
 }
 .report-waiting {
   margin-top: 16px;
@@ -523,6 +601,36 @@ input::placeholder {
   font-size: 11px;
   color: #97a58f;
 }
+.account-switch {
+  margin-top: 14px;
+  font-size: 11px;
+  color: #97a58f;
+  text-align: center;
+}
+.account-switch .text-button {
+  padding: 0;
+}
+.account-danger {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #3a2a28;
+}
+.account-danger h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 550;
+}
+.account-danger p {
+  margin: 0 0 14px;
+  font-size: 11px;
+  color: #97a58f;
+  line-height: 1.6;
+}
+.secondary-button.danger-button {
+  border-color: #6a3d36;
+  background: #3a2420;
+  color: #edb7a8;
+}
 .match-actions {
   display: flex;
   flex-wrap: wrap;
@@ -680,6 +788,26 @@ input::placeholder {
   color: #edb7a8;
   margin-top: 14px;
   line-height: 1.6;
+}
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.footer-links a {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #303931;
+  background: #191f1a;
+  border-radius: 10px;
+  color: #aeb9ae;
+}
+.footer-links a:hover {
+  background: #293329;
+  color: #e4ecd9;
 }
 footer {
   margin-top: auto;
@@ -843,7 +971,8 @@ dialog::backdrop {
   .card-shape {
     top: 24px;
   }
-  .account-card {
+  .account-card,
+  .stats-card {
     padding: 24px;
   }
   form {
@@ -855,6 +984,11 @@ dialog::backdrop {
 @media (min-width: 1100px) {
   .shell {
     padding: 32px 56px 32px;
+  }
+}
+@media (max-width: 720px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (max-width: 380px) {
@@ -877,7 +1011,8 @@ dialog::backdrop {
   .game-topline {
     padding: 15px;
   }
-  .account-card {
+  .account-card,
+  .stats-card {
     padding: 16px;
   }
   .match-meta {

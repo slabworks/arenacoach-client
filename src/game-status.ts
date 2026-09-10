@@ -1,3 +1,7 @@
+import { type CompanionStats } from "./local-stats";
+
+export type { CompanionStats } from "./local-stats";
+
 export type WatchPhase =
   | "starting"
   | "log_missing"
@@ -17,6 +21,7 @@ export type WatcherStatus = {
   api_base: string;
   has_token: boolean;
   signed_in_email: string | null;
+  signed_in_name: string | null;
   log_path: string;
   log_exists: boolean;
   detailed_logs: boolean | null;
@@ -25,6 +30,7 @@ export type WatcherStatus = {
   last_upload_status: number | null;
   host_reachable: boolean | null;
   entries_seen: number;
+  stats: CompanionStats;
 };
 
 export function gameStatus(status: WatcherStatus | null) {

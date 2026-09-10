@@ -1,3 +1,4 @@
+import { EMPTY_STATS } from "../src/local-stats";
 import type { MatchReport, TimelineEvent } from "../src/matches";
 import type { WatcherStatus } from "../src/game-status";
 
@@ -13,6 +14,7 @@ export function watcherStatus(
     api_base: "https://arenacoach.com",
     has_token: true,
     signed_in_email: "you@example.com",
+    signed_in_name: "You",
     log_path: "/tmp/Player.log",
     log_exists: true,
     detailed_logs: true,
@@ -21,6 +23,7 @@ export function watcherStatus(
     last_upload_status: null,
     host_reachable: true,
     entries_seen: 0,
+    stats: EMPTY_STATS,
     ...overrides,
   };
 }

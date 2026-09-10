@@ -8,6 +8,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::config::{is_dev, platform_name};
 use crate::gre_assembler::GreAssembler;
+use crate::local_stats::{CompanionStats, LocalStats};
 use crate::log_follower::{detect_detailed_logs, DetailedLogs, LogFollower};
 use crate::log_path::player_log_path;
 use crate::match_payload::Match;
@@ -39,6 +40,7 @@ pub struct WatcherStatus {
     pub api_base: String,
     pub has_token: bool,
     pub signed_in_email: Option<String>,
+    pub signed_in_name: Option<String>,
     pub log_path: String,
     pub log_exists: bool,
     pub detailed_logs: Option<bool>,
@@ -47,10 +49,11 @@ pub struct WatcherStatus {
     pub last_upload_status: Option<u16>,
     pub host_reachable: Option<bool>,
     pub entries_seen: u64,
+    pub stats: CompanionStats,
 }
 
 impl WatcherStatus {
-    pub fn from_settings(settings: &Settings, log_path: PathBuf) -> Self {
+    pub fn from_settings(settings: &Settings, log_path: PathBuf, stats: CompanionStats) -> Self {
         let exists = log_path.exists();
         Self {
             phase: if exists {
@@ -65,6 +68,7 @@ impl WatcherStatus {
             api_base: settings.api_base(),
             has_token: settings.token().is_some(),
             signed_in_email: settings.user_email(),
+            signed_in_name: settings.user_name(),
             log_path: log_path.display().to_string(),
             log_exists: exists,
             detailed_logs: None,
@@ -73,6 +77,7 @@ impl WatcherStatus {
             last_upload_status: None,
             host_reachable: None,
             entries_seen: 0,
+            stats,
         }
     }
 }
@@ -87,6 +92,8 @@ pub struct WatcherShared {
     pub status: Mutex<WatcherStatus>,
     pub settings: Mutex<Settings>,
     pub settings_path: PathBuf,
+    pub stats: Mutex<LocalStats>,
+    pub stats_path: PathBuf,
     pub commands: tokio::sync::mpsc::Sender<WatchCommand>,
 }
 
@@ -215,6 +222,7 @@ pub async fn run(app: AppHandle, mut commands: tokio::sync::mpsc::Receiver<Watch
                 }
                 for entry in entries {
                     if let Some(assembled) = assembler.push(&entry) {
+                        record_processed_match(&app, &assembled);
                         enqueue_if_new(&mut retry_queue, &posted_lens, assembled);
                     }
                 }
@@ -265,6 +273,7 @@ fn open_follower(app: &AppHandle, tail: bool) -> LogFollower {
         status.api_base = settings.api_base();
         status.has_token = settings.token().is_some();
         status.signed_in_email = settings.user_email();
+        status.signed_in_name = settings.user_name();
     });
     if tail {
         LogFollower::tail(path)
@@ -457,6 +466,7 @@ async fn replay_embedded(
         .map(|duration| duration.as_millis())
         .unwrap_or(0);
     assembled.client_match_id = format!("match-fixture-{stamp}");
+    record_processed_match(app, &assembled);
     let mut queue = VecDeque::new();
     upload_match(app, client, assembled, &mut queue, posted_lens).await;
     Ok(())
@@ -483,6 +493,35 @@ async fn ping_and_store(app: &AppHandle, client: &reqwest::Client) {
     {
         update_status(app, |status| status.host_reachable = Some(reachable));
     }
+}
+
+fn record_processed_match(app: &AppHandle, assembled: &Match) {
+    let shared = app.state::<WatcherShared>();
+    let snapshot = {
+        let mut stats = shared.stats.lock().unwrap();
+        if !stats.record(assembled) {
+            return;
+        }
+        let _ = stats.save(&shared.stats_path);
+        stats.summary()
+    };
+    update_status(app, |status| {
+        status.stats = snapshot;
+    });
+}
+
+pub fn reset_local_stats(app: &AppHandle) -> std::io::Result<()> {
+    let shared = app.state::<WatcherShared>();
+    let snapshot = {
+        let mut stats = shared.stats.lock().unwrap();
+        stats.reset();
+        stats.save(&shared.stats_path)?;
+        stats.summary()
+    };
+    update_status(app, |status| {
+        status.stats = snapshot;
+    });
+    Ok(())
 }
 
 fn update_status(app: &AppHandle, mutate: impl FnOnce(&mut WatcherStatus)) {

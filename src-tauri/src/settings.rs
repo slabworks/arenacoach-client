@@ -87,6 +87,13 @@ impl Settings {
     pub fn user_id(&self) -> Option<i64> {
         self.user_id.filter(|id| *id > 0)
     }
+
+    pub fn user_name(&self) -> Option<String> {
+        self.user_name
+            .as_deref()
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned)
+    }
 }
 
 #[cfg(test)]

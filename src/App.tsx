@@ -2,8 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
+import {
+  accountActionError,
+  createAccount,
+  deleteAccount,
+  loadAccount,
+  signIn,
+  signOut,
+  updateAccount,
+} from "./account";
+import {
+  AccountPanel,
+  type CreateAccountPayload,
+  type DeleteAccountPayload,
+  type SignInPayload,
+  type UpdateAccountPayload,
+} from "./AccountPanel";
 import { gameStatus, type WatcherStatus } from "./game-status";
+import { community, openCommunity } from "./community";
+import { EMPTY_STATS } from "./local-stats";
 import { CoachingBody, MatchList, MatchShow } from "./MatchViews";
+import { StatsPanel } from "./StatsPanel";
 import {
   connectRealtime,
   loadMatchReport,
@@ -19,9 +38,6 @@ type View =
 function App() {
   const [status, setStatus] = useState<WatcherStatus | null>(null);
   const [connectionError, setConnectionError] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [code, setCode] = useState("");
   const [needsTwoFactor, setNeedsTwoFactor] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -130,6 +146,25 @@ function App() {
     }
   }, [status?.has_token]);
 
+  useEffect(() => {
+    if (!status?.has_token) {
+      return;
+    }
+    let disposed = false;
+    void loadAccount()
+      .then((next) => {
+        if (!disposed) {
+          setStatus(next);
+        }
+      })
+      .catch(() => {
+        // Keep the cached profile if the host is unreachable.
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [status?.has_token]);
+
   async function updateSetting(patch: {
     developer_mode?: boolean;
     show_debug_info?: boolean;
@@ -139,8 +174,6 @@ function App() {
     try {
       setStatus(await invoke<WatcherStatus>("update_settings", { patch }));
       if (patch.developer_mode !== undefined) {
-        setPassword("");
-        setCode("");
         setNeedsTwoFactor(false);
       }
     } catch {
@@ -150,17 +183,11 @@ function App() {
     }
   }
 
-  async function signIn() {
+  async function connectAccount(payload: SignInPayload) {
     setBusy(true);
     setActionError(null);
     try {
-      setStatus(
-        await invoke<WatcherStatus>("sign_in", {
-          payload: { email, password, code: needsTwoFactor ? code : null },
-        }),
-      );
-      setPassword("");
-      setCode("");
+      setStatus(await signIn(payload));
       setNeedsTwoFactor(false);
     } catch (error) {
       if (String(error) === "two_factor") {
@@ -168,7 +195,10 @@ function App() {
         setActionError("Enter the code from your authenticator to continue.");
       } else {
         setActionError(
-          "Couldn’t sign in. Check your details and connection, then try again.",
+          accountActionError(
+            error,
+            "Couldn’t sign in. Check your details and connection, then try again.",
+          ),
         );
       }
     } finally {
@@ -176,13 +206,91 @@ function App() {
     }
   }
 
-  async function signOut() {
+  async function registerAccount(payload: CreateAccountPayload) {
     setBusy(true);
     setActionError(null);
     try {
-      setStatus(await invoke<WatcherStatus>("sign_out"));
+      setStatus(await createAccount(payload));
+      setNeedsTwoFactor(false);
+    } catch (error) {
+      setActionError(
+        accountActionError(
+          error,
+          "Couldn’t create your account. Check your details and try again.",
+        ),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveAccount(payload: UpdateAccountPayload) {
+    setBusy(true);
+    setActionError(null);
+    try {
+      setStatus(await updateAccount(payload));
+    } catch (error) {
+      setActionError(
+        accountActionError(
+          error,
+          "Couldn’t update your account. Check your details and try again.",
+        ),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeAccount(payload: DeleteAccountPayload) {
+    if (
+      !window.confirm(
+        "Delete your Arena Coach account? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setActionError(null);
+    try {
+      setStatus(await deleteAccount(payload));
+    } catch (error) {
+      setActionError(
+        accountActionError(
+          error,
+          "Couldn’t delete your account. Check your password and try again.",
+        ),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function disconnectAccount() {
+    setBusy(true);
+    setActionError(null);
+    try {
+      setStatus(await signOut());
     } catch {
       setActionError("Couldn’t sign out. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resetStats() {
+    if (
+      !window.confirm(
+        "Reset your all-time record? This only clears local companion stats.",
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setActionError(null);
+    try {
+      setStatus(await invoke<WatcherStatus>("reset_stats"));
+    } catch {
+      setActionError("Couldn’t reset your record. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -234,6 +342,34 @@ function App() {
               Matches
             </button>
           ) : null}
+          <a
+            className="icon-button"
+            href={community.discord}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Join Discord"
+            title="Discord"
+            onClick={(event) => {
+              event.preventDefault();
+              void openCommunity(community.discord);
+            }}
+          >
+            <Icon name="discord" />
+          </a>
+          <a
+            className="icon-button"
+            href={community.patreon}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Support on Patreon"
+            title="Patreon"
+            onClick={(event) => {
+              event.preventDefault();
+              void openCommunity(community.patreon);
+            }}
+          >
+            <Icon name="patreon" />
+          </a>
           <button
             className="icon-button"
             aria-label="Open settings"
@@ -324,101 +460,27 @@ function App() {
           />
         ) : null}
 
-        <section className="account-card" aria-labelledby="account-title">
-          <div className="account-heading">
-            <div className="small-icon">
-              <Icon name="account" />
-            </div>
-            <div>
-              <h2 id="account-title">
-                {status?.has_token
-                  ? "You’re connected"
-                  : "Connect your account"}
-              </h2>
-              <p>
-                {status?.has_token
-                  ? (status.signed_in_email ?? "Signed in to Arena Coach")
-                  : "Bring your games and your coaching together."}
-              </p>
-            </div>
-            {status?.has_token ? (
-              <span className="connected-dot" aria-label="Signed in" />
-            ) : null}
-          </div>
-          {status?.has_token ? (
-            <div className="signed-in-details">
-              <span>
-                {synced
-                  ? "Your latest match is synced."
-                  : "Your next completed match will sync automatically."}
-              </span>
-              <button className="text-button" disabled={busy} onClick={signOut}>
-                Sign out
-              </button>
-            </div>
-          ) : (
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                void signIn();
-              }}
-            >
-              <label htmlFor="email">Email address</label>
-              <input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.currentTarget.value)}
-                autoComplete="username"
-                required
-                disabled={busy}
-              />
-              <label htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                placeholder="Your password"
-                value={password}
-                onChange={(e) => setPassword(e.currentTarget.value)}
-                autoComplete="current-password"
-                required
-                disabled={busy}
-              />
-              {needsTwoFactor ? (
-                <>
-                  <label htmlFor="code">Authenticator code</label>
-                  <input
-                    id="code"
-                    value={code}
-                    onChange={(e) => setCode(e.currentTarget.value)}
-                    autoComplete="one-time-code"
-                    inputMode="numeric"
-                    required
-                    autoFocus
-                  />
-                </>
-              ) : null}
-              <button
-                className="primary-button"
-                type="submit"
-                disabled={busy || !status}
-              >
-                {busy
-                  ? "Connecting…"
-                  : needsTwoFactor
-                    ? "Verify & connect"
-                    : "Sign in to Arena Coach"}
-                <span aria-hidden="true">↗</span>
-              </button>
-            </form>
-          )}
-          {actionError && !settingsOpen ? (
-            <p className="error" role="alert">
-              {actionError}
-            </p>
-          ) : null}
-        </section>
+        <StatsPanel
+          stats={status?.stats ?? EMPTY_STATS}
+          busy={busy || !status}
+          onReset={() => void resetStats()}
+        />
+
+        <AccountPanel
+          signedIn={Boolean(status?.has_token)}
+          name={status?.signed_in_name ?? ""}
+          email={status?.signed_in_email ?? ""}
+          synced={synced}
+          busy={busy}
+          ready={Boolean(status)}
+          error={settingsOpen ? null : actionError}
+          needsTwoFactor={needsTwoFactor}
+          onSignIn={(payload) => void connectAccount(payload)}
+          onCreate={(payload) => void registerAccount(payload)}
+          onUpdate={(payload) => void saveAccount(payload)}
+          onDelete={(payload) => void removeAccount(payload)}
+          onSignOut={() => void disconnectAccount()}
+        />
 
         <div className="companion-note">
           <Icon name="activity" />
@@ -490,6 +552,34 @@ function App() {
       </div>
 
       <footer>
+        <div className="footer-links">
+          <a
+            href={community.discord}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Join Discord"
+            title="Discord"
+            onClick={(event) => {
+              event.preventDefault();
+              void openCommunity(community.discord);
+            }}
+          >
+            <Icon name="discord" />
+          </a>
+          <a
+            href={community.patreon}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Support on Patreon"
+            title="Patreon"
+            onClick={(event) => {
+              event.preventDefault();
+              void openCommunity(community.patreon);
+            }}
+          >
+            <Icon name="patreon" />
+          </a>
+        </div>
         <span className="footer-brand">ARENA COACH</span>
         <p>Unofficial fan content. Not affiliated with Wizards of the Coast.</p>
       </footer>
@@ -633,8 +723,26 @@ function Row({ label, value }: { label: string; value: string }) {
 function Icon({
   name,
 }: {
-  name: "settings" | "file" | "account" | "activity";
+  name: "settings" | "file" | "activity" | "discord" | "patreon";
 }) {
+  if (name === "discord" || name === "patreon") {
+    return (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        {name === "discord" ? (
+          <path d="M20.317 4.37a19.8 19.8 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.3 18.3 0 0 0-5.487 0 12.6 12.6 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.7 19.7 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14 14 0 0 0 1.226-1.994.076.076 0 0 0-.042-.106 13 13 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10 10 0 0 0 .372-.291.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.106c.36.698.772 1.363 1.225 1.994a.076.076 0 0 0 .084.028 19.8 19.8 0 0 0 6.002-3.03.077.077 0 0 0 .032-.055c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03M8.02 15.331c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418m7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418" />
+        ) : (
+          <path d="M0 .48v23.04h4.22V.48zm15.385 0c-4.764 0-8.641 3.88-8.641 8.65 0 4.755 3.877 8.623 8.641 8.623 4.75 0 8.615-3.868 8.615-8.623C24 4.36 20.136.48 15.385.48" />
+        )}
+      </svg>
+    );
+  }
+
   return (
     <svg
       width="20"
@@ -656,11 +764,6 @@ function Icon({
         <>
           <path d="M14 3H6v18h12V7l-4-4Z" />
           <path d="M14 3v5h4M9 12h6M9 16h4" />
-        </>
-      ) : name === "account" ? (
-        <>
-          <circle cx="12" cy="8" r="3" />
-          <path d="M5 21v-3a7 7 0 0 1 14 0v3" />
         </>
       ) : (
         <path d="M3 12h4l3-7 4 14 3-7h4" />

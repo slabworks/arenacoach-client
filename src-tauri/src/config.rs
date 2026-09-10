@@ -68,6 +68,10 @@ pub fn card_image_url(api_base: &str, grp_id: u32) -> String {
     )
 }
 
+pub fn user_url(api_base: &str) -> String {
+    format!("{}/api/user", api_base.trim_end_matches('/'))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,6 +101,10 @@ mod tests {
         assert_eq!(
             matches_page_url("https://arenacoach-web.test/", 2),
             "https://arenacoach-web.test/api/matches?page=2"
+        );
+        assert_eq!(
+            user_url("https://arenacoach-web.test/"),
+            "https://arenacoach-web.test/api/user"
         );
     }
 

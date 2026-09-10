@@ -1,5 +1,6 @@
 mod config;
 mod gre_assembler;
+mod local_stats;
 mod log_follower;
 mod log_path;
 mod match_payload;
@@ -14,13 +15,17 @@ use serde::Deserialize;
 use tauri::Manager;
 
 use config::platform_name;
+use local_stats::LocalStats;
 use poster::{
-    authorize_broadcast, delete_match, fetch_card_image, fetch_match_report, fetch_matches,
-    fetch_realtime, http_client, login_device, logout_device, MatchPage, MatchReport, PostError,
+    authorize_broadcast, create_user, delete_match, delete_user, fetch_card_image,
+    fetch_match_report, fetch_matches, fetch_realtime, fetch_user, http_client, login_device,
+    logout_device, update_user, Account, DeviceSession, MatchPage, MatchReport, PostError,
     RealtimeConfig,
 };
 use settings::Settings;
-use watcher::{current_status, resolve_log_path, WatchCommand, WatcherShared, WatcherStatus};
+use watcher::{
+    current_status, reset_local_stats, resolve_log_path, WatchCommand, WatcherShared, WatcherStatus,
+};
 
 #[tauri::command]
 fn get_status(app: tauri::AppHandle) -> WatcherStatus {
@@ -72,6 +77,7 @@ fn update_settings(app: tauri::AppHandle, patch: SettingsPatch) -> Result<Watche
         }
         status.has_token = snapshot.token().is_some();
         status.signed_in_email = snapshot.user_email();
+        status.signed_in_name = snapshot.user_name();
         let path = resolve_log_path(&snapshot);
         status.log_path = path.display().to_string();
         status.log_exists = path.exists();
@@ -114,26 +120,7 @@ async fn sign_in(app: tauri::AppHandle, payload: SignInPayload) -> Result<Watche
         other => other.to_string(),
     })?;
 
-    let mut settings = shared.settings.lock().map_err(|error| error.to_string())?;
-    if settings.api_base() != api_base {
-        return Err("Environment changed. Please sign in again.".into());
-    }
-    settings.token = Some(session.token);
-    settings.user_id = Some(session.user_id);
-    settings.user_email = Some(session.email);
-    settings.user_name = Some(session.name);
-    settings
-        .save(&shared.settings_path)
-        .map_err(|error| error.to_string())?;
-    let snapshot = settings.clone();
-    drop(settings);
-    if let Ok(mut status) = shared.status.lock() {
-        status.has_token = true;
-        status.signed_in_email = snapshot.user_email();
-        status.last_error = None;
-    }
-    let _ = shared.commands.try_send(WatchCommand::Refresh);
-    Ok(current_status(&app))
+    persist_session(&app, &api_base, session)
 }
 
 #[tauri::command]
@@ -149,10 +136,7 @@ async fn sign_out(app: tauri::AppHandle) -> Result<WatcherStatus, String> {
         }
     }
     let mut settings = shared.settings.lock().map_err(|error| error.to_string())?;
-    settings.token = None;
-    settings.user_id = None;
-    settings.user_email = None;
-    settings.user_name = None;
+    clear_session(&mut settings);
     settings
         .save(&shared.settings_path)
         .map_err(|error| error.to_string())?;
@@ -160,9 +144,132 @@ async fn sign_out(app: tauri::AppHandle) -> Result<WatcherStatus, String> {
     if let Ok(mut status) = shared.status.lock() {
         status.has_token = false;
         status.signed_in_email = None;
+        status.signed_in_name = None;
     }
     let _ = shared.commands.try_send(WatchCommand::Refresh);
     Ok(current_status(&app))
+}
+
+#[derive(Debug, Deserialize)]
+struct CreateAccountPayload {
+    name: String,
+    email: String,
+    password: String,
+    password_confirmation: String,
+}
+
+#[tauri::command]
+async fn create_account(
+    app: tauri::AppHandle,
+    payload: CreateAccountPayload,
+) -> Result<WatcherStatus, String> {
+    let shared = app.state::<WatcherShared>();
+    let api_base = {
+        let settings = shared.settings.lock().map_err(|error| error.to_string())?;
+        settings.api_base()
+    };
+    let client = http_client().map_err(|error| error.to_string())?;
+    create_user(
+        &client,
+        &api_base,
+        payload.name.trim(),
+        payload.email.trim(),
+        &payload.password,
+        &payload.password_confirmation,
+    )
+    .await
+    .map_err(|error| error.to_string())?;
+
+    let device_name = format!("Arena Coach ({})", platform_name());
+    let session = login_device(
+        &client,
+        &api_base,
+        payload.email.trim(),
+        &payload.password,
+        &device_name,
+        None,
+        None,
+    )
+    .await
+    .map_err(|error| match error {
+        PostError::TwoFactor => "two_factor".to_string(),
+        other => format!("Account created, but we couldn’t sign you in. {other}"),
+    })?;
+
+    persist_session(&app, &api_base, session)
+}
+
+#[derive(Debug, Deserialize)]
+struct UpdateAccountPayload {
+    name: String,
+    email: String,
+    current_password: Option<String>,
+    password: Option<String>,
+    password_confirmation: Option<String>,
+}
+
+#[tauri::command]
+async fn update_account(
+    app: tauri::AppHandle,
+    payload: UpdateAccountPayload,
+) -> Result<WatcherStatus, String> {
+    let (api_base, token) = session_credentials(&app)?;
+    let client = http_client().map_err(|error| error.to_string())?;
+    let account = update_user(
+        &client,
+        &api_base,
+        &token,
+        payload.name.trim(),
+        payload.email.trim(),
+        optional_str(&payload.current_password),
+        optional_str(&payload.password),
+        optional_str(&payload.password_confirmation),
+    )
+    .await
+    .map_err(|error| error.to_string())?;
+    persist_account(&app, &account)
+}
+
+#[derive(Debug, Deserialize)]
+struct DeleteAccountPayload {
+    password: String,
+}
+
+#[tauri::command]
+async fn delete_account(
+    app: tauri::AppHandle,
+    payload: DeleteAccountPayload,
+) -> Result<WatcherStatus, String> {
+    let (api_base, token) = session_credentials(&app)?;
+    let client = http_client().map_err(|error| error.to_string())?;
+    delete_user(&client, &api_base, &token, &payload.password)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    let shared = app.state::<WatcherShared>();
+    let mut settings = shared.settings.lock().map_err(|error| error.to_string())?;
+    clear_session(&mut settings);
+    settings
+        .save(&shared.settings_path)
+        .map_err(|error| error.to_string())?;
+    drop(settings);
+    if let Ok(mut status) = shared.status.lock() {
+        status.has_token = false;
+        status.signed_in_email = None;
+        status.signed_in_name = None;
+    }
+    let _ = shared.commands.try_send(WatchCommand::Refresh);
+    Ok(current_status(&app))
+}
+
+#[tauri::command]
+async fn get_account(app: tauri::AppHandle) -> Result<WatcherStatus, String> {
+    let (api_base, token) = session_credentials(&app)?;
+    let client = http_client().map_err(|error| error.to_string())?;
+    let account = fetch_user(&client, &api_base, &token)
+        .await
+        .map_err(|error| error.to_string())?;
+    persist_account(&app, &account)
 }
 
 #[tauri::command]
@@ -180,6 +287,12 @@ fn replay_log(app: tauri::AppHandle, path: String) -> Result<(), String> {
         .commands
         .try_send(WatchCommand::ReplayFile(PathBuf::from(path)))
         .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn reset_stats(app: tauri::AppHandle) -> Result<WatcherStatus, String> {
+    reset_local_stats(&app).map_err(|error| error.to_string())?;
+    Ok(current_status(&app))
 }
 
 #[tauri::command]
@@ -298,6 +411,79 @@ fn session_credentials(app: &tauri::AppHandle) -> Result<(String, String), Strin
     Ok((settings.api_base(), token))
 }
 
+fn persist_session(
+    app: &tauri::AppHandle,
+    api_base: &str,
+    session: DeviceSession,
+) -> Result<WatcherStatus, String> {
+    let shared = app.state::<WatcherShared>();
+    let mut settings = shared.settings.lock().map_err(|error| error.to_string())?;
+    if settings.api_base() != api_base {
+        return Err("Environment changed. Please sign in again.".into());
+    }
+    store_session(&mut settings, &session);
+    settings
+        .save(&shared.settings_path)
+        .map_err(|error| error.to_string())?;
+    let snapshot = settings.clone();
+    drop(settings);
+    if let Ok(mut status) = shared.status.lock() {
+        apply_session_status(&mut status, &snapshot);
+        status.last_error = None;
+    }
+    let _ = shared.commands.try_send(WatchCommand::Refresh);
+    Ok(current_status(app))
+}
+
+fn persist_account(app: &tauri::AppHandle, account: &Account) -> Result<WatcherStatus, String> {
+    let shared = app.state::<WatcherShared>();
+    let mut settings = shared.settings.lock().map_err(|error| error.to_string())?;
+    store_account(&mut settings, account);
+    settings
+        .save(&shared.settings_path)
+        .map_err(|error| error.to_string())?;
+    let snapshot = settings.clone();
+    drop(settings);
+    if let Ok(mut status) = shared.status.lock() {
+        status.signed_in_email = snapshot.user_email();
+        status.signed_in_name = snapshot.user_name();
+    }
+    Ok(current_status(app))
+}
+
+fn store_session(settings: &mut Settings, session: &DeviceSession) {
+    settings.token = Some(session.token.clone());
+    settings.user_id = Some(session.user_id);
+    settings.user_email = Some(session.email.clone());
+    settings.user_name = Some(session.name.clone());
+}
+
+fn store_account(settings: &mut Settings, account: &Account) {
+    settings.user_id = Some(account.id);
+    settings.user_email = Some(account.email.clone());
+    settings.user_name = Some(account.name.clone());
+}
+
+fn clear_session(settings: &mut Settings) {
+    settings.token = None;
+    settings.user_id = None;
+    settings.user_email = None;
+    settings.user_name = None;
+}
+
+fn apply_session_status(status: &mut WatcherStatus, settings: &Settings) {
+    status.has_token = settings.token().is_some();
+    status.signed_in_email = settings.user_email();
+    status.signed_in_name = settings.user_name();
+}
+
+fn optional_str(value: &Option<String>) -> Option<&str> {
+    value
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
 fn fit_window_to_screen(window: &tauri::WebviewWindow) {
     let _ = window.set_max_size(None::<tauri::LogicalSize<f64>>);
     let _ = window.maximize();
@@ -323,13 +509,20 @@ pub fn run() {
                 .unwrap_or_else(|_| std::env::temp_dir())
                 .join("settings.json");
             let settings = Settings::load(&settings_path);
+            let stats_path = settings_path
+                .parent()
+                .unwrap_or(&settings_path)
+                .join("stats.json");
+            let stats = LocalStats::load(&stats_path);
             let log_path = resolve_log_path(&settings);
-            let status = WatcherStatus::from_settings(&settings, log_path);
+            let status = WatcherStatus::from_settings(&settings, log_path, stats.summary());
             let (tx, rx) = tokio::sync::mpsc::channel(8);
             app.manage(WatcherShared {
                 status: Mutex::new(status),
                 settings: Mutex::new(settings),
                 settings_path,
+                stats: Mutex::new(stats),
+                stats_path,
                 commands: tx,
             });
             if let Some(window) = app.get_webview_window("main") {
@@ -346,8 +539,13 @@ pub fn run() {
             update_settings,
             sign_in,
             sign_out,
+            create_account,
+            update_account,
+            delete_account,
+            get_account,
             replay_log,
             replay_fixture,
+            reset_stats,
             get_realtime_session,
             get_realtime_config,
             get_match_report,

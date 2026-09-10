@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::config::{
     broadcasting_auth_url, card_image_url, device_login_url, device_logout_url, health_url, is_dev,
-    match_url, matches_page_url, matches_url, realtime_url,
+    match_url, matches_page_url, matches_url, realtime_url, user_url,
 };
 use crate::match_payload::Match;
 
@@ -21,6 +21,13 @@ pub struct DeviceSession {
     pub user_id: i64,
     pub email: String,
     pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Account {
+    pub id: i64,
+    pub name: String,
+    pub email: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,6 +139,18 @@ struct MatchResponse {
 #[derive(Debug, Deserialize)]
 struct CardImageResponse {
     url: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct UserResponse {
+    data: UserData,
+}
+
+#[derive(Debug, Deserialize)]
+struct UserData {
+    id: i64,
+    name: String,
+    email: String,
 }
 
 fn json_headers(request: reqwest::RequestBuilder, token: &str) -> reqwest::RequestBuilder {
@@ -257,6 +276,109 @@ pub async fn login_device(
     Err(PostError::Http {
         status,
         body: parsed.message.unwrap_or(body),
+    })
+}
+
+pub async fn create_user(
+    client: &reqwest::Client,
+    api_base: &str,
+    name: &str,
+    email: &str,
+    password: &str,
+    password_confirmation: &str,
+) -> Result<Account, PostError> {
+    let response = client
+        .post(user_url(api_base))
+        .header("Accept", "application/json")
+        .json(&serde_json::json!({
+            "name": name,
+            "email": email,
+            "password": password,
+            "password_confirmation": password_confirmation,
+        }))
+        .send()
+        .await?;
+    parse_account_response(response).await
+}
+
+pub async fn fetch_user(
+    client: &reqwest::Client,
+    api_base: &str,
+    token: &str,
+) -> Result<Account, PostError> {
+    let response = json_headers(client.get(user_url(api_base)), token)
+        .send()
+        .await?;
+    parse_account_response(response).await
+}
+
+pub async fn update_user(
+    client: &reqwest::Client,
+    api_base: &str,
+    token: &str,
+    name: &str,
+    email: &str,
+    current_password: Option<&str>,
+    password: Option<&str>,
+    password_confirmation: Option<&str>,
+) -> Result<Account, PostError> {
+    let mut payload = serde_json::json!({
+        "name": name,
+        "email": email,
+    });
+    if let Some(current_password) = current_password.filter(|value| !value.is_empty()) {
+        payload["current_password"] = serde_json::Value::String(current_password.to_string());
+    }
+    if let Some(password) = password.filter(|value| !value.is_empty()) {
+        payload["password"] = serde_json::Value::String(password.to_string());
+    }
+    if let Some(password_confirmation) = password_confirmation.filter(|value| !value.is_empty()) {
+        payload["password_confirmation"] =
+            serde_json::Value::String(password_confirmation.to_string());
+    }
+
+    let response = json_headers(client.put(user_url(api_base)), token)
+        .json(&payload)
+        .send()
+        .await?;
+    parse_account_response(response).await
+}
+
+pub async fn delete_user(
+    client: &reqwest::Client,
+    api_base: &str,
+    token: &str,
+    password: &str,
+) -> Result<(), PostError> {
+    let response = json_headers(client.delete(user_url(api_base)), token)
+        .json(&serde_json::json!({ "password": password }))
+        .send()
+        .await?;
+    let status = response.status().as_u16();
+    if (200..300).contains(&status) {
+        return Ok(());
+    }
+    Err(PostError::Http {
+        status,
+        body: response.text().await.unwrap_or_default(),
+    })
+}
+
+async fn parse_account_response(response: reqwest::Response) -> Result<Account, PostError> {
+    let status = response.status().as_u16();
+    let body = response.text().await.unwrap_or_default();
+    if (200..300).contains(&status) {
+        return parse_account_body(&body);
+    }
+    Err(PostError::Http { status, body })
+}
+
+fn parse_account_body(body: &str) -> Result<Account, PostError> {
+    let parsed: UserResponse = serde_json::from_str(body)?;
+    Ok(Account {
+        id: parsed.data.id,
+        name: parsed.data.name,
+        email: parsed.data.email,
     })
 }
 
@@ -440,5 +562,21 @@ mod tests {
         }));
         assert!(!should_retry(&PostError::Unauthenticated));
         assert!(!should_retry(&PostError::TwoFactor));
+    }
+
+    #[test]
+    fn reads_account_resource_from_the_api() {
+        let account = parse_account_body(
+            r#"{"data":{"id":7,"name":"Arena Pilot","email":"pilot@example.com"}}"#,
+        )
+        .expect("account json");
+        assert_eq!(
+            account,
+            Account {
+                id: 7,
+                name: "Arena Pilot".into(),
+                email: "pilot@example.com".into(),
+            }
+        );
     }
 }
