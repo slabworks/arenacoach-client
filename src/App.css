@@ -861,6 +861,7 @@ footer p {
 dialog {
   width: min(430px, calc(100% - 32px));
   max-height: calc(100vh - 48px);
+  overflow-y: auto;
   border: 1px solid #46513e;
   border-radius: 18px;
   background: #191f19;
@@ -871,6 +872,9 @@ dialog {
 dialog::backdrop {
   background: #060b08b5;
   backdrop-filter: blur(5px);
+}
+dialog form:first-of-type {
+  margin-top: 0;
 }
 .settings-header {
   display: flex;

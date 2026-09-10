@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type CreateAccountPayload = {
   name: string;
@@ -58,6 +58,7 @@ export function AccountPanel({
 }) {
   const [mode, setMode] = useState<AccountMode>("sign-in");
   const [managing, setManaging] = useState(false);
+  const accountDialog = useRef<HTMLDialogElement>(null);
   const [nameValue, setNameValue] = useState(name);
   const [emailValue, setEmailValue] = useState(email);
   const [password, setPassword] = useState("");
@@ -83,6 +84,11 @@ export function AccountPanel({
       setManaging(false);
     }
   }, [signedIn]);
+
+  useEffect(() => {
+    if (managing) accountDialog.current?.showModal();
+    else accountDialog.current?.close();
+  }, [managing]);
 
   return (
     <section className="account-card" aria-labelledby="account-title">
@@ -123,9 +129,9 @@ export function AccountPanel({
                 className="text-button"
                 type="button"
                 disabled={busy}
-                onClick={() => setManaging((open) => !open)}
+                onClick={() => setManaging(true)}
               >
-                {managing ? "Done" : "Manage account"}
+                Manage account
               </button>
               <button
                 className="text-button"
@@ -137,7 +143,29 @@ export function AccountPanel({
               </button>
             </div>
           </div>
-          {managing ? (
+          <dialog
+            ref={accountDialog}
+            onCancel={() => setManaging(false)}
+            onClose={() => setManaging(false)}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setManaging(false);
+            }}
+            aria-labelledby="manage-account-title"
+          >
+            <div className="settings-header">
+              <div>
+                <span className="eyebrow">YOUR ACCOUNT</span>
+                <h2 id="manage-account-title">Manage account</h2>
+              </div>
+              <button
+                className="icon-button close-button"
+                type="button"
+                aria-label="Close manage account"
+                onClick={() => setManaging(false)}
+              >
+                ×
+              </button>
+            </div>
             <form
               onSubmit={(event) => {
                 event.preventDefault();
@@ -216,8 +244,6 @@ export function AccountPanel({
                 <span aria-hidden="true">↗</span>
               </button>
             </form>
-          ) : null}
-          {managing ? (
             <form
               className="account-danger"
               onSubmit={(event) => {
@@ -248,7 +274,12 @@ export function AccountPanel({
                 Delete account
               </button>
             </form>
-          ) : null}
+            {error ? (
+              <p className="error" role="alert">
+                {error}
+              </p>
+            ) : null}
+          </dialog>
         </>
       ) : mode === "create" ? (
         <form
@@ -392,7 +423,7 @@ export function AccountPanel({
           </p>
         </form>
       )}
-      {error ? (
+      {error && !managing ? (
         <p className="error" role="alert">
           {error}
         </p>

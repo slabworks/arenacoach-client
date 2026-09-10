@@ -101,6 +101,9 @@ describe("AccountPanel", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Manage account" }));
+    expect(
+      screen.getByRole("dialog", { name: "Manage account" }),
+    ).toBeVisible();
     fireEvent.change(screen.getByLabelText("Name"), {
       target: { value: "Arena Pilot" },
     });
@@ -167,5 +170,23 @@ describe("AccountPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete account" }));
 
     expect(deleted).toEqual([{ password: "password" }]);
+  });
+
+  test("closes the manage account dialog", () => {
+    renderAccount({
+      signedIn: true,
+      name: "You",
+      email: "you@example.com",
+      synced: true,
+    });
+
+    expect(screen.queryByRole("dialog", { name: "Manage account" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Manage account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close manage account" }));
+
+    expect(
+      screen.queryByRole("dialog", { name: "Manage account" }),
+    ).toBeNull();
   });
 });
