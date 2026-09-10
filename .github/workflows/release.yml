@@ -1,0 +1,85 @@
+name: release
+
+on:
+  workflow_run:
+    workflows:
+      - tests
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: client-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target aarch64-apple-darwin --bundles dmg
+          - platform: macos-latest
+            args: --target x86_64-apple-darwin --bundles dmg
+          - platform: windows-latest
+            args: --bundles nsis
+
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+          key: ${{ matrix.platform }}-${{ matrix.args }}
+
+      - name: Install JavaScript dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build and upload installers
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_SIGNING_IDENTITY: '-'
+        with:
+          tagName: latest
+          releaseName: Latest
+          releaseBody: |
+            Windows and macOS installers for the current Arena Coach companion.
+
+            - **Windows:** run the `.exe` setup installer
+            - **macOS Apple Silicon:** the `aarch64` `.dmg`
+            - **macOS Intel:** the `x64` `.dmg`
+
+            macOS builds are ad-hoc signed. The first open may need
+            System Settings → Privacy & Security → Open Anyway.
+
+            Download from this release, or use
+            https://github.com/slabworks/arenacoach-client/releases/latest
+          releaseDraft: false
+          prerelease: false
+          releaseCommitish: ${{ github.event.workflow_run.head_sha || github.sha }}
+          retryAttempts: 3
+          releaseAssetNamePattern: '[name]-[platform]-[arch][setup][ext]'
+          args: ${{ matrix.args }}
