@@ -393,7 +393,7 @@ function CardLabels({
   );
 }
 
-function formatPhase(event: TimelineEvent): string {
+export function formatPhase(event: TimelineEvent): string {
   const phase = event.phase?.replace("Phase_", "") ?? null;
   const step = event.step?.replace("Step_", "") ?? null;
   if (phase && step && step !== phase) {
@@ -402,7 +402,7 @@ function formatPhase(event: TimelineEvent): string {
   return phase ?? step ?? "—";
 }
 
-function actorLabel(actor: TimelineEvent["actor"]): string {
+export function actorLabel(actor: TimelineEvent["actor"]): string {
   if (actor === "me") {
     return "You";
   }

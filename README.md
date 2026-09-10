@@ -2,7 +2,7 @@
 
 A Tauri + React companion that reads MTG Arena’s game log and syncs completed matches to Arena Coach.
 
-Run `bun install`, then `bun run tauri dev` to launch the desktop app. `bun run dev` starts only the frontend; game reading requires the native app.
+Run `bun install`, then `bun run desktop` to launch the desktop app. `bun run dev` starts only the frontend; game reading requires the native app.
 
 Open the gear button for saved preferences:
 
@@ -12,4 +12,4 @@ Open the gear button for saved preferences:
 
 The main status automatically reflects whether Arena’s game file was found. If needed, enable **Options → Account → Detailed Logs (Plugin Support)** in Arena and restart it.
 
-Validation: `bun run build` and `cargo test --manifest-path src-tauri/Cargo.toml`.
+Validation: `bun test`, `bun run build`, and `cargo test --manifest-path src-tauri/Cargo.toml`.
