@@ -1,66 +1,69 @@
 # Contributing
 
-Contributions are welcome through pull requests. That includes work written
-with Claude, Cursor, Codex, and other agents.
+Pull requests are welcome, including work from Claude, Cursor, Codex, and
+other agents.
 
-The person who opens the PR owns the change: keep it focused, tested, and
-something you can explain in review.
+The person who opens the PR owns the change. Keep it focused, tested, and
+something you can explain.
 
 ## Ways to help
 
-- Fix bugs and improve the log watcher, match assembler, or desktop UI
-- Add tests around fixture logs and upload behavior
-- Improve docs and onboarding
-- Talk through ideas on [Discord](https://discord.gg/9AjGBjGp6Q) before a large PR
+- Fix bugs in the companion window, sign-in, or match sync
+- Improve how finished games are read from Arena
+- Add tests
+- Improve the docs
 
+Talk through large ideas on [Discord](https://discord.gg/9AjGBjGp6Q) first.
 Please read the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-## Agentic code
+## What to keep in mind
 
-Agent PRs are welcome. Before you open one:
+- This is post-game review, not a live overlay or “play this card” helper.
+- Upload a finished match, not the raw Arena log file.
+- Leave player names and account ids off anything that leaves the computer.
+- This is unofficial fan content. “MTG Arena” is fine; do not use Wizards marks as the product logo.
 
-1. Read [README.md](README.md) and [AGENTS.md](AGENTS.md).
-2. Stay inside the product constraints below.
-3. Run the validation commands and keep the suite green.
-4. Do not open drive-by refactors, comment-only diffs, or license/header churn.
-
-## Product constraints
-
-- Post-game review only. No live “play this card” overlay.
-- Never upload a raw `Player.log`. The device posts a parsed match payload.
-- Strip identity fields (screen name, user id, session id, opponent name) before the request leaves the machine.
-- Model API keys stay on the web server, never in this app.
-- Unofficial fan content. Nominative “MTG Arena” is fine; do not use Wizards marks in the product lockup.
-
-The web app lives in [`arenacoach-web`](https://github.com/slabworks/arenacoach-web).
+The website lives in [arenacoach-web](https://github.com/slabworks/arenacoach-web).
 
 ## Setup
 
-You need [Bun](https://bun.sh), a recent stable Rust toolchain, and the Tauri 2
-system libraries for your OS.
+You need [Bun](https://bun.sh), a recent stable Rust toolchain, and the
+[Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS.
 
-```bash
+On Windows, install the [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+with “Desktop development with C++”, then install Rust with the MSVC toolchain
+(`x86_64-pc-windows-msvc` or `aarch64-pc-windows-msvc`). WebView2 is already on
+current Windows 10/11.
+
+These commands work in PowerShell, Command Prompt, or a Unix shell:
+
+```
 git clone https://github.com/slabworks/arenacoach-client.git
 cd arenacoach-client
 bun install
 ```
 
-## Validation
+`bun run desktop` is the real app (needed to read Arena). `bun run dev` is
+window UI only.
 
-Run these before you open a PR:
+## Before you open a PR
 
-```bash
+```
 bun test
 bun run build
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-## Pull requests
-
 1. Fork the repository.
-2. Create a feature branch from `main`.
-3. Make a focused change with a clear commit message.
-4. Add or update tests for any behavior change.
+2. Branch from `main`.
+3. Make a focused change.
+4. Add or update tests when behavior changes.
 5. Open a pull request that says what changed and why.
 
-Use the PR template. Screenshots help for UI work.
+Screenshots help for window or layout work.
+
+## Releases
+
+Pushes to `main` that pass tests publish Windows and macOS installers to
+the [latest GitHub release](https://github.com/slabworks/arenacoach-client/releases/latest).
+You can also run the `release` workflow by hand.

@@ -24,4 +24,4 @@ body:
     id: extra
     attributes:
       label: Extra context
-      description: Logs, screenshots, or watcher status. Do not paste a raw Player.log.
+      description: Screenshots or what the companion showed. Do not paste a raw Arena log file.

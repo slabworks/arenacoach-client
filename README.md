@@ -1,81 +1,76 @@
-# Arena Coach desktop companion
+# Arena Coach companion
 
-Unofficial MTG Arena post-game companion. Not affiliated with Wizards of the Coast.
+Unofficial desktop companion for Magic: The Gathering Arena. After you finish
+a game, it syncs that match to [Arena Coach](https://github.com/slabworks/arenacoach-web)
+so you can read private coaching notes.
 
-This Tauri app tails Arena’s local game log, assembles a finished match, and
-syncs it to [arenacoach-web](https://github.com/slabworks/arenacoach-web). The
-watcher never sees the model key. Identity fields are stripped on the device.
+Not affiliated with Wizards of the Coast.
 
-## Table of Contents
+## What it does
 
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Getting Started](#getting-started)
-- [Development](#development)
-- [Testing and Quality](#testing-and-quality)
-- [Contributing](#contributing)
-- [Support](#support)
-- [License](#license)
+- Reads the Arena log on your computer after you turn on Detailed Logs
+- Syncs finished games to your Arena Coach account
+- Shows watch status, the latest match, and your notes
+- Leaves names and account ids off the upload
+- Never uploads the raw Arena log file
 
-## Features
+## Download
 
-- Reads the player’s own opted-in Arena log (`Player.log`)
-- Assembles one finished match into a compact JSON payload
-- Posts from Rust so local HTTPS / CORS is not a browser problem
-- Sign-in against the Arena Coach website
-- Status for watching, match in progress, upload, and errors
-- Developer mode for a local web host vs production
+The latest Windows and macOS installers are on the
+[Releases](https://github.com/slabworks/arenacoach-client/releases/latest)
+page. CI rebuilds that release from `main` after tests pass.
 
-Enable **Options → Account → Detailed Logs (Plugin Support)** in Arena and
-restart the client if the log file is missing.
+- Windows: `.exe` setup installer
+- macOS Apple Silicon: `aarch64` `.dmg`
+- macOS Intel: `x64` `.dmg`
 
-## Tech Stack
+macOS may ask you to allow the app in **System Settings → Privacy & Security**
+the first time.
 
-- Tauri 2
-- React 19 and TypeScript
-- Bun
-- Rust (reqwest, tokio)
+## Use it
 
-Mac is the first target. Windows log-path support can exist without a shipped installer.
+1. Create an account on the Arena Coach website.
+2. In Arena, turn on **Options → Account → Detailed Logs (Plugin Support)** and restart the client.
+3. Open the companion, sign in, and leave it running while you play.
+4. After a game, read your notes in the companion or on the website.
 
-## Getting Started
+If the companion cannot find the game file, Detailed Logs are probably still
+off, or Arena needs another restart.
 
-### Prerequisites
+## Build from source
 
-- [Bun](https://bun.sh)
-- A recent stable [Rust](https://rustup.rs) toolchain
-- Tauri 2 system libraries for your OS ([Tauri prerequisites](https://v2.tauri.app/start/prerequisites/))
+You need [Bun](https://bun.sh), a recent stable [Rust](https://rustup.rs)
+toolchain, and the [Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/)
+for your OS. On Windows, that is the Microsoft C++ Build Tools (“Desktop
+development with C++”), the MSVC Rust toolchain, and WebView2 (already on
+current Windows 10/11).
 
-### Installation
+These commands work in PowerShell, Command Prompt, or a Unix shell:
 
-```bash
+```
 git clone https://github.com/slabworks/arenacoach-client.git
 cd arenacoach-client
 bun install
 bun run desktop
 ```
 
-`bun run dev` starts only the frontend. Game reading requires the native app.
+`bun run desktop` is the real app. `bun run dev` is only the window UI and
+cannot read Arena.
 
-Open the gear button for saved preferences:
+Settings (gear button):
 
-- **Developer mode** defaults to off and selects `https://arenacoach-web.test` when enabled, or `https://arenacoach.com` when disabled. Changing environments signs you out.
-- **Show debug info** defaults to off and reveals file paths, watcher state, and connection diagnostics.
-- **Replay fixture match** is available in settings only with developer mode enabled.
+- **Developer mode** talks to the local website instead of production. Changing it signs you out.
+- **Show debug info** adds connection and file-path details.
+- **Replay fixture match** is only in developer mode.
 
-## Development
+Arena’s log is usually:
 
-```bash
-bun run desktop
+- macOS: `~/Library/Logs/Wizards Of The Coast/MTGA/Player.log`
+- Windows: `%USERPROFILE%\AppData\LocalLow\Wizards Of The Coast\MTGA\Player.log`
+
+## Tests
+
 ```
-
-Default Mac log path:
-
-`~/Library/Logs/Wizards Of The Coast/MTGA/Player.log`
-
-## Testing and Quality
-
-```bash
 bun test
 bun run build
 cargo test --manifest-path src-tauri/Cargo.toml
@@ -83,30 +78,23 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 ## Contributing
 
-Contributions are welcome through pull requests. Agentic code is welcome
-(Claude, Cursor, Codex, and others). See [CONTRIBUTING.md](CONTRIBUTING.md).
+Pull requests are welcome, including work from Claude, Cursor, Codex, and
+other agents. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-1. Fork the repository.
-2. Create a feature branch from `main`.
-3. Make your changes with clear commit messages.
-4. Add or update tests for any behavior change.
-5. Run the validation commands above.
-6. Open a pull request.
-
-Please follow the [Code of Conduct](CODE_OF_CONDUCT.md). Questions and design
-chat belong on [Discord](https://discord.gg/9AjGBjGp6Q).
+Please follow the [Code of Conduct](CODE_OF_CONDUCT.md). Chat is on
+[Discord](https://discord.gg/9AjGBjGp6Q).
 
 ## Support
 
-- [Discord](https://discord.gg/9AjGBjGp6Q) — community and questions
-- [Patreon](https://www.patreon.com/c/slabworks) — support the project
+- [Discord](https://discord.gg/9AjGBjGp6Q)
+- [Patreon](https://www.patreon.com/c/slabworks)
 
 ## License
 
-This project is open source and licensed under the [MIT License](LICENSE).
+MIT. See [LICENSE](LICENSE).
 
 ## Contributors
 
-Thanks to all our contributors!
+Thanks to everyone who helps.
 
 [![](https://contrib.rocks/image?repo=slabworks/arenacoach-client)](https://github.com/slabworks/arenacoach-client/graphs/contributors)
