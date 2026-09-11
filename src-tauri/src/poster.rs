@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::config::{
-    broadcasting_auth_url, card_image_url, device_login_url, device_logout_url, health_url, is_dev,
+    broadcasting_auth_url, card_image_url, device_login_url, device_logout_url, health_url,
     match_url, matches_page_url, matches_url, realtime_url, user_url,
 };
 use crate::match_payload::Match;
@@ -160,11 +160,17 @@ fn json_headers(request: reqwest::RequestBuilder, token: &str) -> reqwest::Reque
 }
 
 pub fn http_client() -> reqwest::Result<reqwest::Client> {
-    let mut builder = reqwest::Client::builder();
-    if is_dev() {
-        builder = builder.danger_accept_invalid_certs(true);
+    static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
+    if let Some(client) = CLIENT.get() {
+        return Ok(client.clone());
     }
-    builder.build()
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(5))
+        .timeout(std::time::Duration::from_secs(30))
+        .redirect(reqwest::redirect::Policy::none())
+        .build()?;
+    let _ = CLIENT.set(client.clone());
+    Ok(client)
 }
 
 pub fn should_retry(error: &PostError) -> bool {

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -12,6 +12,7 @@ use crate::local_stats::{CompanionStats, LocalStats};
 use crate::log_follower::{detect_detailed_logs, DetailedLogs, LogFollower};
 use crate::log_path::player_log_path;
 use crate::match_payload::Match;
+use crate::outbox::Outbox;
 use crate::poster::{http_client, ping_host, post_match_with_retry};
 use crate::settings::Settings;
 
@@ -50,6 +51,8 @@ pub struct WatcherStatus {
     pub host_reachable: Option<bool>,
     pub entries_seen: u64,
     pub stats: CompanionStats,
+    pub pending_uploads: usize,
+    pub failed_uploads: usize,
 }
 
 impl WatcherStatus {
@@ -78,6 +81,8 @@ impl WatcherStatus {
             host_reachable: None,
             entries_seen: 0,
             stats,
+            pending_uploads: 0,
+            failed_uploads: 0,
         }
     }
 }
@@ -86,6 +91,8 @@ pub enum WatchCommand {
     ReplayFile(PathBuf),
     ReplayEmbedded,
     Refresh,
+    RetryFailed,
+    DiscardFailed,
 }
 
 pub struct WatcherShared {
@@ -122,37 +129,127 @@ pub async fn run(app: AppHandle, mut commands: tokio::sync::mpsc::Receiver<Watch
 
     let mut assembler = GreAssembler::new();
     let mut follower = open_follower(&app, true);
-    let mut retry_queue: VecDeque<Match> = VecDeque::new();
+    let mut outbox = Outbox::default();
+    let mut outbox_path = None;
+    let mut outbox_error = false;
+    let mut upload: Option<(
+        Match,
+        tokio::task::JoinHandle<Result<crate::poster::PostResult, crate::poster::PostError>>,
+    )> = None;
+    let mut health: Option<tokio::task::JoinHandle<()>> = None;
+    let mut auth_blocked = false;
+    let mut retry_delay = 10u64;
     let mut posted_lens: HashMap<String, usize> = HashMap::new();
-    let mut environment = app
-        .state::<WatcherShared>()
-        .settings
-        .lock()
-        .unwrap()
-        .api_base();
+    let mut session = None;
     let mut ticks: u64 = 0;
     let mut next_retry_at = Instant::now();
 
     probe_log_status(&app, &mut follower);
-    ping_and_store(&app, &client).await;
 
     loop {
-        let current_environment = app
+        let settings = app
             .state::<WatcherShared>()
             .settings
             .lock()
             .unwrap()
-            .api_base();
-        if environment != current_environment {
-            environment = current_environment;
+            .clone();
+        let current_session = settings.session_key();
+        if session.as_ref() != Some(&current_session) {
+            if let Some((_, task)) = upload.take() {
+                task.abort();
+            }
+            session = Some(current_session.clone());
             assembler = GreAssembler::new();
-            retry_queue.clear();
             posted_lens.clear();
+            auth_blocked = false;
+            retry_delay = 10;
+            next_retry_at = Instant::now();
             follower = open_follower(&app, true);
+            let shared = app.state::<WatcherShared>();
+            outbox_path = Outbox::path(
+                shared.settings_path.parent().unwrap(),
+                settings.developer_mode,
+                settings.user_id(),
+            );
+            outbox_error = false;
+            outbox = match outbox_path
+                .as_ref()
+                .map(|path| Outbox::load(path))
+                .transpose()
+            {
+                Ok(queue) => queue.unwrap_or_default(),
+                Err(error) => {
+                    outbox_error = true;
+                    update_status(&app, |status| {
+                        status.phase = WatchPhase::Error;
+                        status.last_error = Some(format!("Cannot load pending uploads: {error}"));
+                    });
+                    Outbox::default()
+                }
+            };
+            update_status(&app, |status| {
+                status.last_match_id = None;
+                status.last_upload_status = None;
+            });
         }
         ticks += 1;
-        if ticks % 25 == 0 {
-            ping_and_store(&app, &client).await;
+        if (ticks == 1 || ticks % 25 == 0) && health.as_ref().is_none_or(|task| task.is_finished())
+        {
+            let app = app.clone();
+            let client = client.clone();
+            health = Some(tokio::spawn(async move {
+                ping_and_store(&app, &client).await;
+            }));
+        }
+
+        if upload.as_ref().is_some_and(|(_, task)| task.is_finished()) {
+            let (payload, task) = upload.take().unwrap();
+            match task.await {
+                Ok(Ok(result)) => {
+                    outbox.finish(&payload, None);
+                    retry_delay = 10;
+                    update_status(&app, |status| {
+                        status.phase = WatchPhase::Uploaded;
+                        status.last_upload_status = Some(result.status);
+                        status.last_error = None;
+                    });
+                }
+                Ok(Err(error)) => {
+                    auth_blocked = matches!(
+                        &error,
+                        crate::poster::PostError::Unauthenticated
+                            | crate::poster::PostError::Http {
+                                status: 401 | 403,
+                                ..
+                            }
+                    );
+                    if !auth_blocked && !crate::poster::should_retry(&error) {
+                        outbox.finish(&payload, Some("The server rejected this match.".into()));
+                    }
+                    next_retry_at = Instant::now() + Duration::from_secs(retry_delay);
+                    retry_delay = (retry_delay * 2).min(300);
+                    update_status(&app, |status| {
+                        status.phase = WatchPhase::Error;
+                        status.last_error = Some(if auth_blocked {
+                            "Sign in again or verify your email on the website, then refresh to resume uploads.".into()
+                        } else {
+                            "Could not sync a match. Temporary failures retry automatically; rejected matches remain saved on this device.".into()
+                        });
+                    });
+                }
+                Err(_) => {
+                    next_retry_at = Instant::now() + Duration::from_secs(10);
+                }
+            }
+            if let Some(path) = &outbox_path {
+                if let Err(error) = outbox.save(path) {
+                    outbox_error = true;
+                    update_status(&app, |status| {
+                        status.phase = WatchPhase::Error;
+                        status.last_error = Some(format!("Cannot save pending uploads: {error}"));
+                    });
+                }
+            }
         }
 
         while let Ok(command) = commands.try_recv() {
@@ -193,21 +290,35 @@ pub async fn run(app: AppHandle, mut commands: tokio::sync::mpsc::Receiver<Watch
                         });
                     }
                 }
+                WatchCommand::RetryFailed | WatchCommand::DiscardFailed => {
+                    if matches!(command, WatchCommand::RetryFailed) {
+                        outbox.retry_failed();
+                    } else {
+                        outbox.discard_failed();
+                    }
+                    if let Some(path) = &outbox_path {
+                        if outbox.save(path).is_ok() {
+                            outbox_error = false;
+                            auth_blocked = false;
+                            next_retry_at = Instant::now();
+                        }
+                    }
+                }
                 WatchCommand::Refresh => {
+                    auth_blocked = false;
                     follower = open_follower(&app, true);
                     probe_log_status(&app, &mut follower);
                 }
             }
         }
 
-        // A setting can change while a network request above is awaiting.
-        if environment
-            != app
-                .state::<WatcherShared>()
-                .settings
-                .lock()
-                .unwrap()
-                .api_base()
+        if app
+            .state::<WatcherShared>()
+            .settings
+            .lock()
+            .unwrap()
+            .session_key()
+            != current_session
         {
             continue;
         }
@@ -221,9 +332,27 @@ pub async fn run(app: AppHandle, mut commands: tokio::sync::mpsc::Receiver<Watch
                     });
                 }
                 for entry in entries {
+                    if detect_detailed_logs(&entry.body) == DetailedLogs::On {
+                        update_status(&app, |status| {
+                            status.detailed_logs = Some(true);
+                        });
+                    }
                     if let Some(assembled) = assembler.push(&entry) {
                         record_processed_match(&app, &assembled);
-                        enqueue_if_new(&mut retry_queue, &posted_lens, assembled);
+                        if !outbox_error {
+                            if let Some(path) = &outbox_path {
+                                if let Err(error) =
+                                    outbox.enqueue(assembled).and_then(|()| outbox.save(path))
+                                {
+                                    outbox_error = true;
+                                    update_status(&app, |status| {
+                                        status.phase = WatchPhase::Error;
+                                        status.last_error =
+                                            Some(format!("Could not save this match: {error}"));
+                                    });
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -242,18 +371,32 @@ pub async fn run(app: AppHandle, mut commands: tokio::sync::mpsc::Receiver<Watch
             }
         }
 
-        probe_log_status(&app, &mut follower);
+        if ticks % 25 == 0 {
+            probe_log_status(&app, &follower);
+        }
         sync_phase(&app, assembler.in_match());
 
-        if Instant::now() >= next_retry_at {
-            if let Some(assembled) = retry_queue.pop_front() {
-                let before = retry_queue.len();
-                upload_match(&app, &client, assembled, &mut retry_queue, &mut posted_lens).await;
-                if retry_queue.len() > before {
-                    next_retry_at = Instant::now() + Duration::from_secs(10);
-                }
+        if !outbox_error && !auth_blocked && upload.is_none() && Instant::now() >= next_retry_at {
+            if let (Some(payload), Some(token)) = (outbox.next(), settings.token()) {
+                let client = client.clone();
+                let api_base = settings.api_base();
+                let sending = payload.clone();
+                update_status(&app, |status| {
+                    status.phase = WatchPhase::Uploading;
+                    status.last_match_id = Some(payload.client_match_id.clone());
+                });
+                upload = Some((
+                    payload,
+                    tokio::spawn(async move {
+                        crate::poster::post_match(&client, &api_base, Some(&token), &sending).await
+                    }),
+                ));
             }
         }
+        update_status(&app, |status| {
+            status.pending_uploads = outbox.pending();
+            status.failed_uploads = outbox.failed();
+        });
 
         tokio::time::sleep(Duration::from_millis(400)).await;
     }
@@ -294,7 +437,15 @@ fn probe_log_status(app: &AppHandle, follower: &LogFollower) {
         });
         return;
     }
-    let sample = match std::fs::read_to_string(path) {
+    let sample = match (|| -> std::io::Result<String> {
+        use std::io::{Read, Seek, SeekFrom};
+        let mut file = std::fs::File::open(path)?;
+        let len = file.metadata()?.len();
+        file.seek(SeekFrom::Start(len.saturating_sub(65_536)))?;
+        let mut bytes = Vec::new();
+        file.take(65_536).read_to_end(&mut bytes)?;
+        Ok(String::from_utf8_lossy(&bytes).into_owned())
+    })() {
         Ok(sample) => sample,
         Err(error) => {
             update_status(app, |status| {
@@ -310,7 +461,7 @@ fn probe_log_status(app: &AppHandle, follower: &LogFollower) {
         status.detailed_logs = match detected {
             DetailedLogs::On => Some(true),
             DetailedLogs::Off => Some(false),
-            DetailedLogs::Unknown => None,
+            DetailedLogs::Unknown => status.detailed_logs,
         };
         if detected == DetailedLogs::Off
             && matches!(
@@ -369,84 +520,10 @@ fn sync_phase(app: &AppHandle, in_match: bool) {
     });
 }
 
-fn enqueue_if_new(
-    queue: &mut VecDeque<Match>,
-    posted_lens: &HashMap<String, usize>,
-    assembled: Match,
-) {
-    if posted_lens.get(&assembled.client_match_id) == Some(&assembled.timeline.len()) {
-        return;
-    }
-    if queue
-        .iter()
-        .any(|queued| queued.client_match_id == assembled.client_match_id)
-    {
-        if let Some(existing) = queue
-            .iter_mut()
-            .find(|queued| queued.client_match_id == assembled.client_match_id)
-        {
-            *existing = assembled;
-        }
-        return;
-    }
-    queue.push_back(assembled);
-}
-
-async fn upload_match(
-    app: &AppHandle,
-    client: &reqwest::Client,
-    assembled: Match,
-    queue: &mut VecDeque<Match>,
-    posted_lens: &mut HashMap<String, usize>,
-) {
-    let (api_base, token) = {
-        let settings = app
-            .state::<WatcherShared>()
-            .settings
-            .lock()
-            .unwrap()
-            .clone();
-        (settings.api_base(), settings.token())
-    };
-    update_status(app, |status| {
-        status.phase = WatchPhase::Uploading;
-        status.last_match_id = Some(assembled.client_match_id.clone());
-        status.last_error = None;
-    });
-    let result = post_match_with_retry(client, &api_base, token.as_deref(), &assembled).await;
-    if app
-        .state::<WatcherShared>()
-        .settings
-        .lock()
-        .unwrap()
-        .api_base()
-        != api_base
-    {
-        return;
-    }
-    match result {
-        Ok(result) => {
-            posted_lens.insert(assembled.client_match_id.clone(), assembled.timeline.len());
-            update_status(app, |status| {
-                status.phase = WatchPhase::Uploaded;
-                status.last_upload_status = Some(result.status);
-                status.last_error = None;
-            });
-        }
-        Err(error) => {
-            queue.push_back(assembled);
-            update_status(app, |status| {
-                status.phase = WatchPhase::Error;
-                status.last_error = Some(format!("Upload failed: {error}"));
-            });
-        }
-    }
-}
-
 async fn replay_embedded(
     app: &AppHandle,
     client: &reqwest::Client,
-    posted_lens: &mut HashMap<String, usize>,
+    _posted_lens: &mut HashMap<String, usize>,
 ) -> Result<(), String> {
     let dir = std::env::temp_dir().join("arenacoach-embedded-fixture.log");
     std::fs::write(&dir, EMBEDDED_FIXTURE).map_err(|error| error.to_string())?;
@@ -467,8 +544,34 @@ async fn replay_embedded(
         .unwrap_or(0);
     assembled.client_match_id = format!("match-fixture-{stamp}");
     record_processed_match(app, &assembled);
-    let mut queue = VecDeque::new();
-    upload_match(app, client, assembled, &mut queue, posted_lens).await;
+    let session = app
+        .state::<WatcherShared>()
+        .settings
+        .lock()
+        .unwrap()
+        .clone();
+    let result = post_match_with_retry(
+        client,
+        &session.api_base(),
+        session.token().as_deref(),
+        &assembled,
+    )
+    .await
+    .map_err(|error| error.to_string())?;
+    if app
+        .state::<WatcherShared>()
+        .settings
+        .lock()
+        .unwrap()
+        .session_key()
+        == session.session_key()
+    {
+        update_status(app, |status| {
+            status.phase = WatchPhase::Uploaded;
+            status.last_match_id = Some(assembled.client_match_id);
+            status.last_upload_status = Some(result.status);
+        });
+    }
     Ok(())
 }
 
@@ -528,7 +631,11 @@ fn update_status(app: &AppHandle, mutate: impl FnOnce(&mut WatcherStatus)) {
     let shared = app.state::<WatcherShared>();
     let snapshot = {
         let mut status = shared.status.lock().unwrap();
+        let before = serde_json::to_value(&*status).ok();
         mutate(&mut status);
+        if before == serde_json::to_value(&*status).ok() {
+            return;
+        }
         status.clone()
     };
     let _ = app.emit("watcher-status", snapshot);

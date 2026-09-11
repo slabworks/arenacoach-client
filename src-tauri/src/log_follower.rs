@@ -130,7 +130,13 @@ pub fn split_entries(buffer: &str) -> (Vec<LogEntry>, String) {
     let starts: Vec<usize> = buffer.match_indices(HEADER).map(|(idx, _)| idx).collect();
     if starts.is_empty() {
         let trimmed = if buffer.len() > 65_536 {
-            buffer[buffer.len() - 65_536..].to_string()
+            {
+                let mut start = buffer.len() - 65_536;
+                while !buffer.is_char_boundary(start) {
+                    start += 1;
+                }
+                buffer[start..].to_string()
+            }
         } else {
             buffer.to_string()
         };
@@ -250,10 +256,7 @@ fn file_key(meta: &fs::Metadata) -> (u64, u64) {
     #[cfg(windows)]
     {
         use std::os::windows::fs::MetadataExt;
-        (
-            u64::from(meta.volume_serial_number().unwrap_or(0)),
-            meta.file_index().unwrap_or(0),
-        )
+        (meta.creation_time(), 0)
     }
     #[cfg(not(any(unix, windows)))]
     {
@@ -309,6 +312,15 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("arenacoach-log-{nanos}"));
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn headerless_unicode_truncation_keeps_character_boundaries() {
+        let input = "界".repeat(30_000);
+        let (entries, remainder) = split_entries(&input);
+        assert!(entries.is_empty());
+        assert!(remainder.len() <= 65_536);
+        assert!(input.ends_with(&remainder));
     }
 
     #[test]

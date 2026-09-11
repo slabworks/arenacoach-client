@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    arenacoach_local_lib::run()
+    arenacoach_client_lib::run()
 }

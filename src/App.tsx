@@ -641,6 +641,11 @@ function App() {
             }
           />
         </label>
+        <div className="setting">
+          <span><strong>Match uploads</strong><small>{status?.pending_uploads ?? 0} pending · {status?.failed_uploads ?? 0} rejected</small></span>
+          <button type="button" className="secondary-button" disabled={busy} onClick={() => { void invoke("manage_uploads", { discardFailed: false }).catch(() => setActionError("Could not resume uploads.")); }}>Resume uploads</button>
+          {(status?.failed_uploads ?? 0) > 0 ? <button type="button" className="secondary-button" onClick={() => { if (window.confirm("Remove rejected uploads from this device?")) { void invoke("manage_uploads", { discardFailed: true }).catch(() => setActionError("Could not remove rejected uploads.")); } }}>Remove rejected</button> : null}
+        </div>
         {status?.developer_mode ? (
           <div className="developer-tools">
             <span className="eyebrow">DEVELOPMENT SERVER</span>

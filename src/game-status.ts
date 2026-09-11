@@ -14,6 +14,8 @@ export type WatchPhase =
 
 export type WatcherStatus = {
   phase: WatchPhase;
+  pending_uploads?: number;
+  failed_uploads?: number;
   platform: string;
   is_dev: boolean;
   developer_mode: boolean;
@@ -58,7 +60,7 @@ export function gameStatus(status: WatcherStatus | null) {
     return {
       title: "Your companion needs attention",
       detail:
-        "We couldn’t read or sync your latest game. Check that Arena is running and your connection is available.",
+        status.last_error ?? "We couldn’t read or sync your latest game. Check that Arena is running and your connection is available.",
       tone: "waiting",
     };
   if (status.phase === "starting")

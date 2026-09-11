@@ -207,7 +207,7 @@ export function AccountPanel({
               <input
                 id="account-current-password"
                 type="password"
-                placeholder="Needed to change your password"
+                placeholder="Needed for email or password changes"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.currentTarget.value)}
                 autoComplete="current-password"

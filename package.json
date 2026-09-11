@@ -1,5 +1,5 @@
 {
-  "name": "arenacoach-local",
+  "name": "arenacoach-client",
   "private": true,
   "version": "0.1.0",
   "description": "Arena Coach desktop companion — unofficial MTG Arena post-game watcher",

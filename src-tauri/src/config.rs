@@ -29,7 +29,7 @@ pub fn matches_url(api_base: &str) -> String {
 }
 
 pub fn matches_page_url(api_base: &str, page: u32) -> String {
-    format!("{}?page={}", matches_url(api_base), page.max(1))
+    format!("{}?page={}&summary=1", matches_url(api_base), page.max(1))
 }
 
 pub fn health_url(api_base: &str) -> String {
@@ -100,7 +100,7 @@ mod tests {
         );
         assert_eq!(
             matches_page_url("https://arenacoach-web.test/", 2),
-            "https://arenacoach-web.test/api/matches?page=2"
+            "https://arenacoach-web.test/api/matches?page=2&summary=1"
         );
         assert_eq!(
             user_url("https://arenacoach-web.test/"),

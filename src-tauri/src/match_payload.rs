@@ -159,9 +159,17 @@ impl Match {
         payload.cap_timeline();
         let mut bytes = serde_json::to_vec(&payload)?;
         while bytes.len() > MAX_PAYLOAD_BYTES && payload.timeline.len() > 20 {
-            let drop_count = (payload.timeline.len() / 4).max(1);
+            let drop_count = (payload.timeline.len() / 4)
+                .max(1)
+                .min(payload.timeline.len() - 20);
             payload.timeline.drain(20..20 + drop_count);
             bytes = serde_json::to_vec(&payload)?;
+        }
+        if bytes.len() > MAX_PAYLOAD_BYTES {
+            return Err(serde_json::Error::io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Match exceeds the upload size limit",
+            )));
         }
         Ok(bytes)
     }
@@ -170,6 +178,33 @@ impl Match {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn oversized_payloads_with_few_events_fail_without_panicking() {
+        let event = TimelineEvent {
+            t_ms: 0,
+            turn: None,
+            phase: None,
+            step: None,
+            actor: Actor::Me,
+            kind: EventKind::Other,
+            card_ids: vec![],
+            note: "x".repeat(MAX_PAYLOAD_BYTES),
+            context: None,
+        };
+        for count in [1, 20, 21, 25] {
+            let payload = Match {
+                client_match_id: "test".into(),
+                event_id: "test".into(),
+                format: Format::Unknown,
+                result: MatchResult::Unknown,
+                player_seat: 1,
+                deck_grp_ids: vec![],
+                timeline: vec![event.clone(); count],
+            };
+            assert!(payload.to_json_bytes().is_err());
+        }
+    }
 
     #[test]
     fn constructed_and_limited_from_event_id() {

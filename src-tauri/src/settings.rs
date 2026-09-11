@@ -6,11 +6,13 @@ use crate::config::api_base_for_mode;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Settings {
+    #[serde(skip)]
+    pub generation: u64,
     #[serde(default)]
     pub developer_mode: bool,
     #[serde(default)]
     pub show_debug_info: bool,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub token: Option<String>,
     #[serde(default)]
     pub user_id: Option<i64>,
@@ -23,20 +25,79 @@ pub struct Settings {
 }
 
 impl Settings {
-    pub fn load(path: &PathBuf) -> Self {
-        std::fs::read_to_string(path)
-            .ok()
-            .and_then(|text| Self::from_json(&text).ok())
-            .unwrap_or_default()
+    pub fn load(path: &PathBuf) -> std::io::Result<Self> {
+        let text = match std::fs::read_to_string(path) {
+            Ok(text) => text,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(Self::default())
+            }
+            Err(error) => return Err(error),
+        };
+        let mut settings = Self::from_json(&text).map_err(std::io::Error::other)?;
+        let value: serde_json::Value =
+            serde_json::from_str(&text).map_err(std::io::Error::other)?;
+        if settings.token().is_some() {
+            settings.save(path)?;
+        } else if value.get("session_saved").and_then(|v| v.as_bool()) == Some(true) {
+            let entry = credential_entry()?;
+            match entry.get_password() {
+                Ok(secret) => {
+                    let session: SavedSession = serde_json::from_str(&secret).map_err(|_| std::io::Error::other("Invalid saved session"))?;
+                    if session.api_base == settings.api_base() {
+                        settings.token = Some(session.token);
+                        settings.user_id = Some(session.user_id);
+                        settings.user_name = session.user_name;
+                        settings.user_email = session.user_email;
+                    }
+                }
+                Err(keyring::Error::NoEntry) => settings.clear_session(),
+                Err(_) => return Err(std::io::Error::other("Cannot access your system credential store. Unlock it and restart Arena Coach.")),
+            }
+        }
+        Ok(settings)
     }
 
     pub fn save(&self, path: &PathBuf) -> std::io::Result<()> {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
+        let entry = credential_entry()?;
+        if let Some(token) = self.token() {
+            let session = SavedSession {
+                api_base: self.api_base(),
+                token,
+                user_id: self.user_id.unwrap_or(0),
+                user_email: self.user_email.clone(),
+                user_name: self.user_name.clone(),
+            };
+            entry
+                .set_password(&serde_json::to_string(&session).map_err(std::io::Error::other)?)
+                .map_err(|_| {
+                    std::io::Error::other("Cannot save your session in the system credential store")
+                })?;
         }
-        std::fs::write(
+        let mut value = serde_json::to_value(self).map_err(std::io::Error::other)?;
+        value["session_saved"] = serde_json::Value::Bool(self.token().is_some());
+        crate::outbox::atomic_write(
             path,
-            serde_json::to_vec_pretty(self).unwrap_or_else(|_| b"{}".to_vec()),
+            &serde_json::to_vec_pretty(&value).map_err(std::io::Error::other)?,
+        )?;
+        if self.token().is_none() {
+            match entry.delete_credential() {
+                Ok(()) | Err(keyring::Error::NoEntry) => {}
+                Err(_) => {
+                    return Err(std::io::Error::other(
+                        "Signed out locally, but the saved credential could not be removed",
+                    ))
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn session_key(&self) -> (String, Option<i64>, u64, Option<String>) {
+        (
+            self.api_base(),
+            self.user_id(),
+            self.generation,
+            self.token(),
         )
     }
 
@@ -59,7 +120,8 @@ impl Settings {
         true
     }
 
-    fn clear_session(&mut self) {
+    pub fn clear_session(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
         self.token = None;
         self.user_id = None;
         self.user_email = None;
@@ -101,6 +163,18 @@ mod tests {
     use super::*;
 
     #[test]
+    fn logout_invalidates_captured_session_keys() {
+        let mut settings = Settings {
+            token: Some("token".into()),
+            user_id: Some(1),
+            ..Settings::default()
+        };
+        let key = settings.session_key();
+        settings.clear_session();
+        assert_ne!(settings.session_key(), key);
+    }
+
+    #[test]
     fn switching_environment_clears_session_but_preserves_preferences() {
         let mut settings = Settings {
             token: Some("secret".into()),
@@ -138,6 +212,26 @@ mod tests {
         };
         let restored = Settings::from_json(&serde_json::to_string(&settings).unwrap()).unwrap();
         assert!(restored.developer_mode && restored.show_debug_info);
-        assert_eq!(restored.token(), settings.token());
+        assert!(restored.token().is_none());
+        assert!(!serde_json::to_string(&settings).unwrap().contains("secret"));
     }
+}
+
+#[derive(Serialize, Deserialize)]
+struct SavedSession {
+    api_base: String,
+    token: String,
+    user_id: i64,
+    user_email: Option<String>,
+    user_name: Option<String>,
+}
+
+fn credential_entry() -> std::io::Result<keyring::Entry> {
+    if !cfg!(any(target_os = "macos", target_os = "windows")) {
+        return Err(std::io::Error::other(
+            "Secure sign-in is supported on macOS and Windows.",
+        ));
+    }
+    keyring::Entry::new("com.chris.arenacoach-local", "session")
+        .map_err(|_| std::io::Error::other("Cannot open the system credential store"))
 }
